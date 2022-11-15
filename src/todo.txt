@@ -1,0 +1,5 @@
+- Make a way to delete current save file
+- Add Four-Hand dude
+- Convert positions into a Tile_Position which consists of two integers defining the position within the tilemap(s) and a Vector2 which is the offset within this tile
+- Menu
+- Hide mouse cursor and only show it in the menu

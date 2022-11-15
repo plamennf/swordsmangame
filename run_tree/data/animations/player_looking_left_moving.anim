@@ -1,0 +1,7 @@
+[1] # Version number
+
+sampler_rate 6
+is_looping true
+num_frames 2
+pachi_samurai_right_left_walking
+pachi_samurai_still_left_side

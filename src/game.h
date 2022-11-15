@@ -39,6 +39,11 @@ struct Time_Info {
     float real_world_dt = 0.0f;
 };
 
+enum Program_Mode {
+    PROGRAM_MODE_GAME,
+    PROGRAM_MODE_MENU,
+};
+
 struct Game_Globals {
     double last_time = 0.0;
     double time_rate = 1.0;
@@ -74,6 +79,8 @@ struct Game_Globals {
 
     int font_page_size_x = 0;
     int font_page_size_y = 0;
+
+    Program_Mode program_mode = PROGRAM_MODE_GAME;
 };
 
 extern Game_Globals globals;
@@ -95,3 +102,4 @@ Game_Mode_Info *load_game_mode(Game_Mode game_mode);
 Vector2 world_space_to_screen_space(Vector2 v);
 
 Entity_Manager *get_entity_manager();
+

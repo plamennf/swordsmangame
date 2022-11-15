@@ -50,7 +50,7 @@ Enemy *Entity_Manager::make_enemy() {
     register_entity(enemy);
     enemy->type = ENTITY_TYPE_ENEMY;
 
-    enemy->size = Vector2(1, 1);
+    enemy->size = Vector2(2, 2);
     
     return enemy;
 }

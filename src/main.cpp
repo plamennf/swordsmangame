@@ -9,6 +9,7 @@
 #include "entity_manager.h"
 #include "entities.h"
 #include "animation.h"
+#include "main_menu.h"
 
 #include "shader_registry.h"
 #include "texture_registry.h"
@@ -182,46 +183,12 @@ static void respond_to_input() {
         if (is_key_pressed('P')) {
             save_current_game_mode();
             log("Current game mode saved successfully.\n");
-        } else if (is_key_pressed('1')) {
-            auto manager = get_entity_manager();
-            assert(manager->by_type._Guy.count);
-            Guy *guy = manager->by_type._Guy[0];
-            guy->set_animation(guy->looking_down_idle_animation);
-        } else if (is_key_pressed('2')) {
-            auto manager = get_entity_manager();
-            assert(manager->by_type._Guy.count);
-            Guy *guy = manager->by_type._Guy[0];
-            guy->set_animation(guy->looking_right_idle_animation);
-        } else if (is_key_pressed('3')) {
-            auto manager = get_entity_manager();
-            assert(manager->by_type._Guy.count);
-            Guy *guy = manager->by_type._Guy[0];
-            guy->set_animation(guy->looking_up_idle_animation);
-        } else if (is_key_pressed('4')) {
-            auto manager = get_entity_manager();
-            assert(manager->by_type._Guy.count);
-            Guy *guy = manager->by_type._Guy[0];
-            guy->set_animation(guy->looking_left_idle_animation);
-        } else if (is_key_pressed('5')) {
-            auto manager = get_entity_manager();
-            assert(manager->by_type._Guy.count);
-            Guy *guy = manager->by_type._Guy[0];
-            guy->set_animation(guy->looking_down_moving_animation);
-        } else if (is_key_pressed('6')) {
-            auto manager = get_entity_manager();
-            assert(manager->by_type._Guy.count);
-            Guy *guy = manager->by_type._Guy[0];
-            guy->set_animation(guy->looking_right_moving_animation);
-        } else if (is_key_pressed('7')) {
-            auto manager = get_entity_manager();
-            assert(manager->by_type._Guy.count);
-            Guy *guy = manager->by_type._Guy[0];
-            guy->set_animation(guy->looking_up_moving_animation);
-        } else if (is_key_pressed('8')) {
-            auto manager = get_entity_manager();
-            assert(manager->by_type._Guy.count);
-            Guy *guy = manager->by_type._Guy[0];
-            guy->set_animation(guy->looking_left_moving_animation);
+        }
+    }
+
+    if (is_key_pressed(KEY_ESCAPE)) {
+        if (globals.program_mode == PROGRAM_MODE_GAME || globals.program_mode == PROGRAM_MODE_MENU) {
+            toggle_menu();
         }
     }
 }
@@ -411,6 +378,8 @@ static void do_one_frame() {
 
         globals.display_width = width;
         globals.display_height = height;
+
+        init_menu_fonts();
     }
     globals.window_resizes.count = 0;
 
@@ -455,13 +424,25 @@ static void do_one_frame() {
     }
     
     respond_to_input();
-    
-    while (accumulated_dt >= GAMEPLAY_DT) {
-        simulate_game();
-        accumulated_dt -= GAMEPLAY_DT;
+
+    if (globals.program_mode == PROGRAM_MODE_GAME) {
+        while (accumulated_dt >= GAMEPLAY_DT) {
+            simulate_game();
+            accumulated_dt -= GAMEPLAY_DT;
+        }
+    } else {
+        accumulated_dt = 0.0;
+
+        if (globals.program_mode == PROGRAM_MODE_MENU) {
+            update_menu();
+        }
     }
-    
-    draw_one_frame();
+
+    if (globals.program_mode == PROGRAM_MODE_GAME) {
+        draw_one_frame();
+    } else if (globals.program_mode == PROGRAM_MODE_MENU) {
+        draw_menu();
+    }
     
     swap_buffers();
     
@@ -712,7 +693,7 @@ Vector2 world_space_to_screen_space(Vector2 v) {
 
     result.x *= globals.render_width;
     result.y *= globals.render_height;
-
+    
     return result;
 }
 

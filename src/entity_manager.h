@@ -6,10 +6,12 @@
 struct Entity;
 struct Guy;
 struct Tilemap;
+struct Enemy;
 
 struct Entities_By_Type {
     Array <Guy *> _Guy;
     Array <Tilemap *> _Tilemap;
+    Array <Enemy *> _Enemy;
 };
 
 struct Entity_Manager {
@@ -19,7 +21,8 @@ struct Entity_Manager {
     
     Guy *make_guy();
     Tilemap *make_tilemap();
-
+    Enemy *make_enemy();
+    
 private:
     void register_entity(Entity *e);
 };

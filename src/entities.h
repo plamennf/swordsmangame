@@ -11,6 +11,7 @@ struct Animation;
 enum Entity_Type {
     ENTITY_TYPE_GUY = 0,
     ENTITY_TYPE_TILEMAP = 1,
+    ENTITY_TYPE_ENEMY = 2,
 };
 
 struct Entity {
@@ -80,3 +81,8 @@ struct Tilemap : public Entity {
 };
 
 bool load_tilemap(Tilemap *tilemap, char *name);
+
+struct Enemy : public Entity {
+    Vector2 size;
+    Texture *texture;
+};

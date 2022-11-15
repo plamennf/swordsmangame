@@ -18,6 +18,8 @@ Guy *Entity_Manager::make_guy() {
     by_type._Guy.add(guy);
     register_entity(guy);
     guy->type = ENTITY_TYPE_GUY;
+
+    guy->size = Vector2(1, 1);
     
     guy->looking_down_idle_animation = globals.animation_registry->get("player_looking_down_idle");
     guy->looking_right_idle_animation = globals.animation_registry->get("player_looking_right_idle");
@@ -40,4 +42,15 @@ Tilemap *Entity_Manager::make_tilemap() {
     register_entity(tm);
     tm->type = ENTITY_TYPE_TILEMAP;
     return tm;
+}
+
+Enemy *Entity_Manager::make_enemy() {
+    Enemy *enemy = new Enemy();
+    by_type._Enemy.add(enemy);
+    register_entity(enemy);
+    enemy->type = ENTITY_TYPE_ENEMY;
+
+    enemy->size = Vector2(1, 1);
+    
+    return enemy;
 }

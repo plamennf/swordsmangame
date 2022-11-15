@@ -325,7 +325,10 @@ static void draw_one_frame() {
         }
         immediate_flush();
     }
-        
+
+    //
+    // Draw guys
+    //
     immediate_set_shader(globals.shader_guy);
     for (Guy *guy : manager->by_type._Guy) {
         Animation *animation = guy->current_animation;
@@ -338,6 +341,39 @@ static void draw_one_frame() {
         
         Vector2 position = world_space_to_screen_space(guy->position);
         Vector2 size = world_space_to_screen_space(guy->size);
+        
+        float hw = size.x * 0.5f;
+        float hh = size.y * 0.5f;
+        
+        Vector2 center = position + Vector2(hw, hh);
+
+        Vector2 p0 = center + Vector2(-hw, -hh);
+        Vector2 p1 = center + Vector2(+hw, -hh);
+        Vector2 p2 = center + Vector2(+hw, +hh);
+        Vector2 p3 = center + Vector2(-hw, +hh);
+
+        Vector2 uv0(0, 0);
+        Vector2 uv1(1, 0);
+        Vector2 uv2(1, 1);
+        Vector2 uv3(0, 1);
+        
+        immediate_begin();
+        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, Vector4(1, 1, 1, 1));
+        immediate_flush();
+    }
+
+    //
+    // Draw enemies
+    //
+    immediate_set_shader(globals.shader_guy);
+    for (Enemy *enemy : manager->by_type._Enemy) {
+        Texture *texture = enemy->texture;
+        if (!texture) continue;
+        
+        set_texture(0, texture);
+        
+        Vector2 position = world_space_to_screen_space(enemy->position);
+        Vector2 size = world_space_to_screen_space(enemy->size);
         
         float hw = size.x * 0.5f;
         float hh = size.y * 0.5f;
@@ -413,6 +449,9 @@ static void do_one_frame() {
         
         globals.render_width = globals.render_area.width;
         globals.render_height = globals.render_area.height;
+
+        globals.world_space_size_x = tilemap->width;
+        globals.world_space_size_y = tilemap->height;
     }
     
     respond_to_input();
@@ -597,6 +636,8 @@ Game_Mode_Info *load_game_mode(Game_Mode game_mode) {
     return info;
 }
 
+// @Incomplete:
+// - Add enemy
 static bool save_current_game_mode() {
     auto info = globals.current_game_mode;
     auto manager = info->entity_manager;
@@ -657,13 +698,17 @@ static void init_overworld(Game_Mode_Info *info) {
     Tilemap *tilemap = manager->make_tilemap();
     load_tilemap(tilemap, "test");
     tilemap->position = Vector2(0, 0);
+
+    Enemy *enemy = manager->make_enemy();
+    enemy->position = Vector2(1, 1);
+    enemy->texture = globals.texture_registry->get("pachi_demon_knight_front");
 }
 
 Vector2 world_space_to_screen_space(Vector2 v) {
     Vector2 result = v;
     
-    result.x /= WORLD_SPACE_SIZE_X;
-    result.y /= WORLD_SPACE_SIZE_Y;
+    result.x /= globals.world_space_size_x;//WORLD_SPACE_SIZE_X;
+    result.y /= globals.world_space_size_y;//WORLD_SPACE_SIZE_Y;
 
     result.x *= globals.render_width;
     result.y *= globals.render_height;

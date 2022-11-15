@@ -55,6 +55,9 @@ struct Game_Globals {
     int display_height = 0;
     Window_Type my_window = NULL;
 
+    int world_space_size_x = 0;
+    int world_space_size_y = 0;
+    
     Rectangle2i render_area;
     int render_width = 0;
     int render_height = 0;

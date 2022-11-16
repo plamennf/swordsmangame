@@ -148,8 +148,8 @@ static void simulate_game() {
     Clamp(guy->velocity.y, -guy->max_velocity.y, guy->max_velocity.y);
 
     Rectangle2 player_rect;
-    player_rect.x = round_to_two_decimal_places(guy->position.x);
-    player_rect.y = round_to_two_decimal_places(guy->position.y);
+    player_rect.x = guy->position.x;
+    player_rect.y = guy->position.y;
     player_rect.width = 0.95f;
     player_rect.height = 0.95f;
     

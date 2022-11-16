@@ -43,6 +43,7 @@ enum Event_Type {
     EVENT_TYPE_QUIT,
     EVENT_TYPE_KEYBOARD,
     EVENT_TYPE_MOUSE_MOVE,
+    EVENT_TYPE_MOUSE_WHEEL,
 };
 
 struct Event {
@@ -54,6 +55,7 @@ struct Event {
 
     int x = 0;
     int y = 0;
+    int delta = 0;
 };
 
 struct Window_Resize_Record {

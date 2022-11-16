@@ -230,6 +230,19 @@ static LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
             
         globals.events_this_frame.add(event);
     } break;
+
+    case WM_MOUSEWHEEL: {
+        Event event = {};
+        event.type = EVENT_TYPE_MOUSE_WHEEL;
+
+        POINTS pt = MAKEPOINTS(lparam);
+        event.x = pt.x;
+        event.y = pt.y;
+        event.delta = GET_WHEEL_DELTA_WPARAM(wparam);
+        
+        globals.events_this_frame.add(event);
+        
+    } break;
         
     default:
         return DefWindowProcW(hwnd, msg, wparam, lparam);

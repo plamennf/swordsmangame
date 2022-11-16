@@ -21,71 +21,6 @@ const double GAMEPLAY_DT = 1.0 / 60.0; // @Hardcode
 
 static bool save_current_game_mode();
 
-#if 0
-// @Speed
-static bool collidable_tiles_in_region(Vector2 pos, Vector2 size) {
-    auto manager = get_entity_manager();
-    Tilemap *tm = manager->by_type._Tilemap[0]; // @Hack
-    
-    Vector2 ipos = pos;
-    ipos.x += roundf(tm->width * 0.5f);
-    ipos.y += roundf(tm->height * 0.5f);
-    
-    int ix, iy;
-
-    float threshold = 0.01f;
-    
-    float fract_x = fract(ipos.x);
-    float inv_fract_x = 1.0f - fract_x;
-    if (inv_fract_x < threshold) {
-        ix = (int)(ipos.x + 0.5f);
-    } else {
-        ix = (int)(floorf(ipos.x));
-    }
-    
-    float fract_y = fract(ipos.y);
-    float inv_fract_y = 1.0f - fract_y;
-    if (inv_fract_y < threshold) {
-        iy = (int)(ipos.y + 0.5f);
-    } else {
-        iy = (int)(floorf(ipos.y));
-    }
-    
-    //int ix = (int)(floorf(pos.x));
-    //int iy = (int)(floorf(pos.y));
-
-    float a1 = pos.x;
-    float a2 = pos.x + size.x;
-    float b1 = pos.y;
-    float b2 = pos.y + size.y;
-    
-    for (Tilemap *tm : manager->by_type._Tilemap) {
-        float xpos = tm->position.x;
-        float ypos = tm->position.y;// + (tm->height - 1);
-        for (int y = 0; y < tm->height; y++) {
-            for (int x = 0; x < tm->width; x++) {
-                int tix = (int)xpos;
-                int tiy = (int)ypos;
-                if ((xpos > a1 && xpos < a2 && ypos > b1 && ypos < b2) ||
-                    (ix == tix && iy == tiy)) {
-                    Tile *tile = &tm->tiles[y * tm->width + x];
-                    if (tile->is_collidable) {
-                        return true;
-                    }
-                }
-                
-                xpos += 1.0f;
-            }
-            xpos = tm->position.x;
-            //ypos -= 1.0f;
-            ypos += 1.0f;
-        }
-    }
-
-    return false;
-}
-#endif
-
 static float move_toward(float a, float b, float amount) {
     if (a > b) {
         a -= amount;
@@ -116,6 +51,13 @@ bool was_key_just_released(int key_code) {
 }
 
 static double accumulated_dt = 0.0;
+
+static void respond_to_event_for_game(Event event) {
+    if (event.type == EVENT_TYPE_MOUSE_WHEEL) {
+        globals.zoom_level -= event.delta * 0.01f;
+        globals.zoom_level = Max(globals.zoom_level, 0.01f);
+    }
+}
 
 static void simulate_game() {
     float dt = get_gameplay_dt();
@@ -264,7 +206,7 @@ static void set_matrix_for_entities() {
     float half_width = 0.5f * tm->width;
     float half_height = 0.5f  * tm->height;
     
-    global_parameters.proj_matrix = make_orthographic(-half_width * globals.zoom_level, half_width * globals.zoom_level, -half_height, half_height);
+    global_parameters.proj_matrix = make_orthographic(-half_width * globals.zoom_level, half_width * globals.zoom_level, -half_height * globals.zoom_level, half_height * globals.zoom_level);
     global_parameters.view_matrix.identity();
     global_parameters.transform = global_parameters.proj_matrix * global_parameters.view_matrix;    
 }
@@ -451,6 +393,10 @@ static void do_one_frame() {
             
             break;
         }
+        }
+
+        if (globals.program_mode == PROGRAM_MODE_GAME) {
+            respond_to_event_for_game(event);
         }
     }
 

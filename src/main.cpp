@@ -21,28 +21,34 @@ const double GAMEPLAY_DT = 1.0 / 60.0; // @Hardcode
 
 static bool save_current_game_mode();
 
+#if 0
 // @Speed
 static bool collidable_tiles_in_region(Vector2 pos, Vector2 size) {
     auto manager = get_entity_manager();
-
+    Tilemap *tm = manager->by_type._Tilemap[0]; // @Hack
+    
+    Vector2 ipos = pos;
+    ipos.x += roundf(tm->width * 0.5f);
+    ipos.y += roundf(tm->height * 0.5f);
+    
     int ix, iy;
 
     float threshold = 0.01f;
     
-    float fract_x = fract(pos.x);
+    float fract_x = fract(ipos.x);
     float inv_fract_x = 1.0f - fract_x;
     if (inv_fract_x < threshold) {
-        ix = (int)(pos.x + 0.5f);
+        ix = (int)(ipos.x + 0.5f);
     } else {
-        ix = (int)(floorf(pos.x));
+        ix = (int)(floorf(ipos.x));
     }
-
-    float fract_y = fract(pos.y);
+    
+    float fract_y = fract(ipos.y);
     float inv_fract_y = 1.0f - fract_y;
     if (inv_fract_y < threshold) {
-        iy = (int)(pos.y + 0.5f);
+        iy = (int)(ipos.y + 0.5f);
     } else {
-        iy = (int)(floorf(pos.y));
+        iy = (int)(floorf(ipos.y));
     }
     
     //int ix = (int)(floorf(pos.x));
@@ -78,6 +84,7 @@ static bool collidable_tiles_in_region(Vector2 pos, Vector2 size) {
 
     return false;
 }
+#endif
 
 static float move_toward(float a, float b, float amount) {
     if (a > b) {
@@ -123,7 +130,7 @@ static void simulate_game() {
     if (is_key_down('S')) move_dir.y -= 1.0f;
     move_dir = normalize_or_zero(move_dir);
 
-    float speed = 0.5f;
+    float speed = 2.0f;
     
     Guy *guy = manager->by_type._Guy[0];
     if (guy->current_animation) {
@@ -134,30 +141,53 @@ static void simulate_game() {
 
     guy->velocity.x = move_toward(guy->velocity.x, 0.0f, fabsf(guy->velocity.x) * 2.0f);
     guy->velocity.y = move_toward(guy->velocity.y, 0.0f, fabsf(guy->velocity.y) * 2.0f);
-    guy->velocity.x += move_dir.x * speed;
-    guy->velocity.y += move_dir.y * speed;
+    guy->velocity.x += move_dir.x * speed * dt;
+    guy->velocity.y += move_dir.y * speed * dt;
     
     Clamp(guy->velocity.x, -guy->max_velocity.x, guy->max_velocity.x);
     Clamp(guy->velocity.y, -guy->max_velocity.y, guy->max_velocity.y);
+
+    Rectangle2 player_rect;
+    player_rect.x = round_to_two_decimal_places(guy->position.x);
+    player_rect.y = round_to_two_decimal_places(guy->position.y);
+    player_rect.width = 0.95f;
+    player_rect.height = 0.95f;
     
-    Vector2 ps[] = {
-        { 1.0f, 1.0f },
-        { 0.0f, 1.0f },
-        { 1.0f, 0.0f },
-    };
-    
-    const int MAX_ATTEMPTS = 8;
-    for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        for (int i = 0; i < ArrayCount(ps); i++) {
-            Vector2 new_vel = componentwise_product(guy->velocity, ps[i]);
-            Vector2 new_position = guy->position + new_vel * dt;
-            if (!collidable_tiles_in_region(new_position, guy->size)) {
-                guy->position = new_position;
-                guy->velocity = new_vel;
-                break;
+    for (Tilemap *tm : manager->by_type._Tilemap) {
+        float xpos = tm->position.x;
+        float ypos = tm->position.y;
+        for (int y = 0; y < tm->height; y++) {
+            for (int x = 0; x < tm->width; x++) {
+                Tile tile = tm->tiles[y * tm->width + x];
+                if (tile.is_collidable) {
+                    Rectangle2 tile_rect;
+                    tile_rect.x = xpos;
+                    tile_rect.y = ypos;
+                    tile_rect.width = 1.0f;
+                    tile_rect.height = 1.0f;
+
+                    bool has_collided = false;
+                    
+                    if ((guy->velocity.x > 0.0f && is_touching_left(player_rect, tile_rect, guy->velocity)) || (guy->velocity.x < 0.0f && is_touching_right(player_rect, tile_rect, guy->velocity))) {
+                        guy->velocity.x = 0.0f;
+                        has_collided = true;
+                    }
+                    
+                    if ((guy->velocity.y > 0.0f && is_touching_bottom(player_rect, tile_rect, guy->velocity)) || (guy->velocity.y < 0.0f && is_touching_top(player_rect, tile_rect, guy->velocity))) {
+                        guy->velocity.y = 0.0f;
+                        has_collided = true;
+                    }
+                    
+                    if (has_collided) break;
+                }
+                xpos += 1.0f;
             }
+            xpos = tm->position.x;
+            ypos += 1.0f;
         }
     }
+
+    guy->position += guy->velocity;// * dt;
 
     Guy_State state = guy->current_state;
     Guy_Orientation orientation = guy->orientation;
@@ -227,13 +257,26 @@ static void init_game() {
     globals.current_game_mode = load_game_mode(GAME_MODE_OVERWORLD);
 }
 
+static void set_matrix_for_entities() {
+    auto manager = get_entity_manager();
+    Tilemap *tm = manager->by_type._Tilemap[0]; // @Hack
+
+    float half_width = 0.5f * tm->width;
+    float half_height = 0.5f  * tm->height;
+    
+    global_parameters.proj_matrix = make_orthographic(-half_width * globals.zoom_level, half_width * globals.zoom_level, -half_height, half_height);
+    global_parameters.view_matrix.identity();
+    global_parameters.transform = global_parameters.proj_matrix * global_parameters.view_matrix;    
+}
+
 static void draw_one_frame() {
     set_render_targets(the_back_buffer, NULL);
     clear_color_target(the_back_buffer, 0.0f, 1.0f, 1.0f, 1.0f, globals.render_area);
     set_viewport(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
     set_scissor(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
     
-    rendering_2d_right_handed(globals.render_width, globals.render_height);
+    //rendering_2d_right_handed(globals.render_width, globals.render_height);
+    set_matrix_for_entities();
     refresh_global_parameters();
     
     auto manager = get_entity_manager();
@@ -261,8 +304,8 @@ static void draw_one_frame() {
                             last_texture = texture;
                         }
                         
-                        Vector2 position = world_space_to_screen_space(Vector2(xpos, ypos));
-                        Vector2 size = world_space_to_screen_space(Vector2(1, 1));
+                        Vector2 position(xpos, ypos);
+                        Vector2 size(1, 1);
 
                         float hw = size.x * 0.5f;
                         float hh = size.y * 0.5f;
@@ -306,8 +349,8 @@ static void draw_one_frame() {
         
         set_texture(0, texture);
         
-        Vector2 position = world_space_to_screen_space(guy->position);
-        Vector2 size = world_space_to_screen_space(guy->size);
+        Vector2 position = guy->position;
+        Vector2 size = guy->size;
         
         float hw = size.x * 0.5f;
         float hh = size.y * 0.5f;
@@ -339,8 +382,8 @@ static void draw_one_frame() {
         
         set_texture(0, texture);
         
-        Vector2 position = world_space_to_screen_space(enemy->position);
-        Vector2 size = world_space_to_screen_space(enemy->size);
+        Vector2 position = enemy->position;
+        Vector2 size = enemy->size;
         
         float hw = size.x * 0.5f;
         float hh = size.y * 0.5f;
@@ -673,28 +716,16 @@ static void init_overworld(Game_Mode_Info *info) {
     
     auto manager = info->entity_manager;
     Guy *guy = manager->make_guy();
-    guy->position = Vector2(5.0f, 5.0f);
+    guy->position = Vector2(0.0f, 0.5f);
     guy->size = Vector2(1.0f, 1.0f);
     
     Tilemap *tilemap = manager->make_tilemap();
     load_tilemap(tilemap, "test");
-    tilemap->position = Vector2(0, 0);
+    tilemap->position = Vector2(-8.0f, -4.5f);
 
     Enemy *enemy = manager->make_enemy();
-    enemy->position = Vector2(1, 1);
+    enemy->position = Vector2(-7.0f, -3.5f);
     enemy->texture = globals.texture_registry->get("pachi_demon_knight_front");
-}
-
-Vector2 world_space_to_screen_space(Vector2 v) {
-    Vector2 result = v;
-    
-    result.x /= globals.world_space_size_x;//WORLD_SPACE_SIZE_X;
-    result.y /= globals.world_space_size_y;//WORLD_SPACE_SIZE_Y;
-
-    result.x *= globals.render_width;
-    result.y *= globals.render_height;
-    
-    return result;
 }
 
 Entity_Manager *get_entity_manager() {

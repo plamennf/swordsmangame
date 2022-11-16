@@ -5,6 +5,7 @@
 - Hide mouse cursor and only show it in the menu
 - Fullscreen
 - Editor
+- Camera shake
 
 - Suggestions for the BIG MAN (Angel Enchev):
     - Cactus

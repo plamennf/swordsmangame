@@ -66,6 +66,8 @@ struct Game_Globals {
     Rectangle2i render_area;
     int render_width = 0;
     int render_height = 0;
+
+    float zoom_level = 1.0f;
     
     Shader_Registry *shader_registry = NULL;
     Texture_Registry *texture_registry = NULL;
@@ -99,7 +101,4 @@ bool was_key_just_released(int key_code);
 
 Game_Mode_Info *load_game_mode(Game_Mode game_mode);
 
-Vector2 world_space_to_screen_space(Vector2 v);
-
 Entity_Manager *get_entity_manager();
-

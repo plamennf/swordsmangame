@@ -100,3 +100,5 @@ char *replace_forwardslash_with_backslash(char *string);
 
 char *lowercase(char *string);
 char *copy_strip_extension(char *filename, bool use_temporary_storage = false);
+
+float round_to_two_decimal_places(float var);

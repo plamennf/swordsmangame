@@ -469,6 +469,18 @@ inline Matrix4 make_transformation_matrix(Vector3 position, Vector3 rotation, fl
     return make_transformation_matrix(position, rotation, Vector3(scale, scale, scale));
 }
 
+inline Matrix4 make_orthographic(float l, float r, float b, float t) {
+    Matrix4 result;
+    result.identity();
+
+    result._11 = 2.0f/(r-l);
+    result._22 = 2.0f/(t-b);
+    result._14 = -((r+l)/(r-l));
+    result._24 = -((t+b)/(t-b));
+    
+    return result;
+}
+
 struct Quaternion {
     float x = 0.0f, y = 0.0f, z = 0.0f;
     float w = 1.0f;
@@ -605,4 +617,79 @@ inline Rectangle2i aspect_ratio_fit(int window_width, int window_height, int ren
     }
 
     return result;
+}
+
+struct Rectangle2 {
+    float x;
+    float y;
+    float width;
+    float height;
+};
+
+inline bool is_touching_left(Rectangle2 a, Rectangle2 b, Vector2 vel) {
+    float al = a.x;
+    float ar = al + a.width;
+    float ab = a.y;
+    float at = a.y + a.height;
+    
+    float bl = b.x;
+    float br = bl + b.width;
+    float bb = b.y;
+    float bt = b.y + b.height;
+
+    return ar + vel.x > bl &&
+        al < bl &&
+        ab < bt &&
+        at > bb;
+}
+
+inline bool is_touching_right(Rectangle2 a, Rectangle2 b, Vector2 vel) {
+    float al = a.x;
+    float ar = al + a.width;
+    float ab = a.y;
+    float at = a.y + a.height;
+
+    float bl = b.x;
+    float br = bl + b.width;
+    float bb = b.y;
+    float bt = b.y + b.height;
+
+    return al + vel.x < br &&
+        ar > br &&
+        ab < bt &&
+        at > bb;
+}
+
+inline bool is_touching_top(Rectangle2 a, Rectangle2 b, Vector2 vel) {
+    float al = a.x;
+    float ar = al + a.width;
+    float ab = a.y;
+    float at = a.y + a.height;
+
+    float bl = b.x;
+    float br = bl + b.width;
+    float bb = b.y;
+    float bt = b.y + b.height;
+
+    return ab + vel.y < bt &&
+        at > bt &&
+        ar > bl &&
+        al < br;
+}
+
+inline bool is_touching_bottom(Rectangle2 a, Rectangle2 b, Vector2 vel) {
+    float al = a.x;
+    float ar = al + a.width;
+    float ab = a.y;
+    float at = a.y + a.height;
+
+    float bl = b.x;
+    float br = bl + b.width;
+    float bb = b.y;
+    float bt = b.y + b.height;
+
+    return at + vel.y > bb &&
+        ab < bb &&
+        ar > bl &&
+        al < br;
 }

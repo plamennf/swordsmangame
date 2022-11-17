@@ -54,7 +54,7 @@ static double accumulated_dt = 0.0;
 
 static void respond_to_event_for_game(Event event) {
     if (event.type == EVENT_TYPE_MOUSE_WHEEL) {
-        globals.zoom_level -= event.delta * 0.01f;
+        globals.zoom_level -= event.delta * 0.001f;
         globals.zoom_level = Max(globals.zoom_level, 0.01f);
     }
 }

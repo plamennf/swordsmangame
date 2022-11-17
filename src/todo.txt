@@ -1,7 +1,5 @@
 - Make a way to delete current save file
-- Menu
-- Zooming
-- Hide mouse cursor and only show it in the menu
+- Moving camera with space + left click + mous emove
 - Fullscreen
 - Editor
 - Camera shake

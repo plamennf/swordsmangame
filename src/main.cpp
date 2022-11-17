@@ -61,7 +61,7 @@ static void respond_to_event_for_game(Event event) {
 
 static void simulate_game() {
     float dt = get_gameplay_dt();
-
+    
     auto manager = get_entity_manager();
     
     Vector2 move_dir(0.0f, 0.0f);
@@ -360,7 +360,7 @@ static void do_one_frame() {
         int height = record.height;
 
         render_resize(width, height);
-
+        
         globals.display_width = width;
         globals.display_height = height;
 
@@ -415,6 +415,9 @@ static void do_one_frame() {
     respond_to_input();
 
     if (globals.program_mode == PROGRAM_MODE_GAME) {
+        os_show_cursor(false);
+        os_constrain_mouse(globals.my_window);
+        
         while (accumulated_dt >= GAMEPLAY_DT) {
             simulate_game();
             accumulated_dt -= GAMEPLAY_DT;
@@ -425,6 +428,9 @@ static void do_one_frame() {
         if (globals.program_mode == PROGRAM_MODE_MENU) {
             update_menu();
         }
+
+        os_show_cursor(true);
+        os_unconstrain_mouse();
     }
 
     if (globals.program_mode == PROGRAM_MODE_GAME) {

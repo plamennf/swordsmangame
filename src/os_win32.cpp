@@ -380,4 +380,49 @@ double get_time() {
     return (double)perf_counter / (double)perf_freq;
 }
 
+void os_show_cursor(bool should_show) {
+    auto cursor_visible = ShowCursor(0);
+
+    if (should_show) {
+        if (cursor_visible < 1) {
+            ShowCursor(1);
+            ShowCursor(1);
+        }
+    } else {
+        if (cursor_visible < -1) ShowCursor(1);
+    }
+}
+
+void os_unconstrain_mouse() {
+    ClipCursor(NULL);
+}
+
+void os_constrain_mouse(Window_Type window_handle) {
+    RECT rect;
+    GetClientRect(window_handle, &rect);
+
+    POINT point;
+    point.x = 0;
+    point.y = 0;
+    ClientToScreen(window_handle, &point);
+
+    rect.left += point.x;
+    rect.right += point.x;
+    rect.top += point.y;
+    rect.bottom += point.y;
+    ClipCursor(&rect);
+
+    int cx = (rect.left + rect.right) / 2;
+    int cy = (rect.bottom + rect.top) / 2;
+
+    /*
+    POINT old_point;
+    GetCursorPos(&old_point);
+    SetCursorPos(cx, cy);
+
+    globals.mouse_x_offset = old_point.x - cx;
+    globals.mouse_y_offset = cy - old_point.y;
+    */
+}
+
 #endif

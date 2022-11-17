@@ -15,3 +15,7 @@ void setcwd(char *path);
 bool get_file_last_write_time(char *filepath, u64 *modtime);
 
 double get_time();
+
+void os_show_cursor(bool should_show);
+void os_unconstrain_mouse();
+void os_constrain_mouse(Window_Type window_handle);

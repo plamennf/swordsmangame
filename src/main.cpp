@@ -163,6 +163,10 @@ static void respond_to_input() {
             toggle_menu();
         }
     }
+
+    if (is_key_pressed(KEY_F11)) {
+        window_toggle_fullscreen(globals.my_window);
+    }
 }
 
 static void update_time(float dt_max) {

@@ -4,11 +4,13 @@
 
 #include "os.h"
 #include "game.h"
+#include "hash_table.h"
 
 #include <windows.h>
 
 static bool window_class_initted = false;
 static wchar_t *WINDOW_CLASS_NAME = L"ThingWin32WindowClass";
+static Hash_Table <HWND, WINDOWPLACEMENT> window_placements;
 
 static Key_Code vk_code_to_key_code(u32 vk_code) {
     if (vk_code >= 48 && vk_code <= 90) return (Key_Code) vk_code;
@@ -302,6 +304,8 @@ Window_Type create_window(int width, int height, char *title) {
     UpdateWindow(window);
     ShowWindow(window, SW_SHOW);
 
+    window_placements.add(window, {});
+    
     return window;
 }
 
@@ -312,6 +316,38 @@ void update_window_events() {
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
+}
+
+void window_toggle_fullscreen(Window_Type hwnd) {
+    WINDOWPLACEMENT *wp = window_placements.find(hwnd);
+    if (!wp) return;
+    wp->length = sizeof(WINDOWPLACEMENT);
+    
+    DWORD style = GetWindowLongW(hwnd, GWL_STYLE);
+    if (style & WS_OVERLAPPEDWINDOW) {
+        MONITORINFO mi = {sizeof(mi)};
+        if (GetWindowPlacement(hwnd, wp) &&
+            GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY), &mi)) {
+            SetWindowLongW(hwnd, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(hwnd, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top,
+                         mi.rcMonitor.right - mi.rcMonitor.left,
+                         mi.rcMonitor.bottom - mi.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    } else {
+        SetWindowLongW(hwnd, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(hwnd, wp);
+        SetWindowPos(hwnd, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+
+    RECT rect;
+    GetClientRect(hwnd, &rect);
+    
+    Window_Resize_Record record = {};
+    record.window = hwnd;
+    record.width = rect.right - rect.left;
+    record.height = rect.bottom - rect.top;
+    globals.window_resizes.add(record);
 }
 
 bool file_exists(char *fullpath) {

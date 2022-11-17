@@ -5,6 +5,7 @@
 
 Window_Type create_window(int width, int height, char *title);
 void update_window_events();
+void window_toggle_fullscreen(Window_Type hwnd);
 
 void init_colors_and_utf8();
 bool file_exists(char *fullpath);

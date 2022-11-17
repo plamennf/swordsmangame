@@ -16,8 +16,10 @@ void Camera::update(float dt) {
         
         position.x += x_delta * speed * dt;
         position.y += y_delta * speed * dt;
-
-        globals.draw_cursor = true;
+        
+        globals.camera_is_moving = true;
+    } else {
+        globals.camera_is_moving = false;
     }
 }
 

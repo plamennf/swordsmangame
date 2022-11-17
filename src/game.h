@@ -86,6 +86,7 @@ struct Game_Globals {
     int mouse_y_offset = 0;
 
     bool draw_cursor = false;
+    bool camera_is_moving = false;
 };
 
 extern Game_Globals globals;

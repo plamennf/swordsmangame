@@ -450,9 +450,18 @@ static void do_one_frame() {
     } else if (globals.program_mode == PROGRAM_MODE_MENU) {
         draw_menu();
     }
-
+    
+    if (globals.camera_is_moving) {
+        globals.draw_cursor = true;
+    }
+    
     if (globals.draw_cursor) {
-        draw_cursor();
+        Cursor_Type cursor_type = CURSOR_TYPE_DOT;
+        if (globals.camera_is_moving) {
+            cursor_type = CURSOR_TYPE_FOUR_ARROWS;
+        }
+        
+        draw_cursor(globals.camera_is_moving, cursor_type);
     }
     
     swap_buffers();

@@ -20,3 +20,4 @@ double get_time();
 void os_show_cursor(bool should_show);
 void os_unconstrain_mouse();
 void os_constrain_mouse(Window_Type window_handle);
+void os_get_mouse_pointer_position(int *x, int *y, Window_Type window_handle, bool flipped);

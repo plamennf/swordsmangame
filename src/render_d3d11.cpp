@@ -215,6 +215,18 @@ void immediate_quad(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, Vector2 uv0,
     num_immediate_vertices += 6;
 }
 
+void immediate_triangle(Vector2 p0, Vector2 p1, Vector2 p2, Vector4 color) {
+    if (num_immediate_vertices + 3 > MAX_IMMEDIATE_VERTICES) immediate_flush();
+
+    Vertex_XCUN *v = immediate_vertices + num_immediate_vertices;
+
+    put_vertex(&v[0], p0, color);
+    put_vertex(&v[1], p1, color);
+    put_vertex(&v[2], p2, color);
+    
+    num_immediate_vertices += 3;
+}
+
 Shader *immediate_set_shader(Shader *shader) {
     assert(shader);
     

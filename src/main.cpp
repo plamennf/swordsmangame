@@ -10,6 +10,8 @@
 #include "entities.h"
 #include "animation.h"
 #include "main_menu.h"
+#include "camera.h"
+#include "cursor.h"
 
 #include "shader_registry.h"
 #include "texture_registry.h"
@@ -53,9 +55,11 @@ bool was_key_just_released(int key_code) {
 static double accumulated_dt = 0.0;
 
 static void respond_to_event_for_game(Event event) {
+    auto manager = get_entity_manager();
+    Camera *camera = manager->camera;
+    
     if (event.type == EVENT_TYPE_MOUSE_WHEEL) {
-        globals.zoom_level -= event.delta * 0.001f;
-        globals.zoom_level = Max(globals.zoom_level, 0.01f);
+        if (camera) camera->handle_zoom(event.delta);
     }
 }
 
@@ -63,6 +67,7 @@ static void simulate_game() {
     float dt = get_gameplay_dt();
     
     auto manager = get_entity_manager();
+    manager->camera->update(dt);
     
     Vector2 move_dir(0.0f, 0.0f);
     if (is_key_down('A')) move_dir.x -= 1.0f;
@@ -206,12 +211,13 @@ static void init_game() {
 static void set_matrix_for_entities() {
     auto manager = get_entity_manager();
     Tilemap *tm = manager->by_type._Tilemap[0]; // @Hack
-
+    Camera *camera = manager->camera;
+    
     float half_width = 0.5f * tm->width;
     float half_height = 0.5f  * tm->height;
     
-    global_parameters.proj_matrix = make_orthographic(-half_width * globals.zoom_level, half_width * globals.zoom_level, -half_height * globals.zoom_level, half_height * globals.zoom_level);
-    global_parameters.view_matrix.identity();
+    global_parameters.proj_matrix = make_orthographic(-half_width * camera->zoom_level, half_width * camera->zoom_level, -half_height * camera->zoom_level, half_height * camera->zoom_level);
+    global_parameters.view_matrix = camera->get_matrix();
     global_parameters.transform = global_parameters.proj_matrix * global_parameters.view_matrix;    
 }
 
@@ -418,9 +424,12 @@ static void do_one_frame() {
     
     respond_to_input();
 
+    os_show_cursor(false);
+
+    globals.draw_cursor = false;
     if (globals.program_mode == PROGRAM_MODE_GAME) {
-        os_show_cursor(false);
         os_constrain_mouse(globals.my_window);
+        globals.draw_cursor = false;
         
         while (accumulated_dt >= GAMEPLAY_DT) {
             simulate_game();
@@ -428,19 +437,22 @@ static void do_one_frame() {
         }
     } else {
         accumulated_dt = 0.0;
-
+        os_unconstrain_mouse();
+        globals.draw_cursor = true;
+        
         if (globals.program_mode == PROGRAM_MODE_MENU) {
             update_menu();
         }
-
-        os_show_cursor(true);
-        os_unconstrain_mouse();
     }
 
     if (globals.program_mode == PROGRAM_MODE_GAME) {
         draw_one_frame();
     } else if (globals.program_mode == PROGRAM_MODE_MENU) {
         draw_menu();
+    }
+
+    if (globals.draw_cursor) {
+        draw_cursor();
     }
     
     swap_buffers();
@@ -671,6 +683,12 @@ static void init_overworld(Game_Mode_Info *info) {
     info->savegame_name = get_savegame_name_for_game_mode(GAME_MODE_OVERWORLD);
     
     auto manager = info->entity_manager;
+    
+    Camera *camera = new Camera();
+    camera->position = Vector2(0, 0);
+    camera->zoom_level = 1.0f;
+    manager->camera = camera;
+    
     Guy *guy = manager->make_guy();
     guy->position = Vector2(0.0f, 0.5f);
     guy->size = Vector2(1.0f, 1.0f);

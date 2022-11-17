@@ -37,6 +37,8 @@ project swordsmangame
         src/text_file_handler.cpp
         src/animation.cpp
         src/main_menu.cpp
+        src/camera.cpp
+        src/cursor.cpp
     }
 
     includedirs {

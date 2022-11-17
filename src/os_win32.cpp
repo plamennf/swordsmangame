@@ -451,14 +451,29 @@ void os_constrain_mouse(Window_Type window_handle) {
     int cx = (rect.left + rect.right) / 2;
     int cy = (rect.bottom + rect.top) / 2;
 
-    /*
     POINT old_point;
     GetCursorPos(&old_point);
     SetCursorPos(cx, cy);
 
     globals.mouse_x_offset = old_point.x - cx;
     globals.mouse_y_offset = cy - old_point.y;
-    */
+}
+
+void os_get_mouse_pointer_position(int *x, int *y, Window_Type window_handle, bool flipped) {
+    POINT pt;
+    GetCursorPos(&pt);
+
+    ScreenToClient(window_handle, &pt);
+
+    if (flipped) {
+        RECT rect;
+        GetClientRect(window_handle, &rect);
+        int height = rect.bottom - rect.top;
+        pt.y = height - pt.y;
+    }
+
+    if (x) *x = pt.x;
+    if (y) *y = pt.y;
 }
 
 #endif

@@ -67,8 +67,6 @@ struct Game_Globals {
     int render_width = 0;
     int render_height = 0;
 
-    float zoom_level = 1.0f;
-    
     Shader_Registry *shader_registry = NULL;
     Texture_Registry *texture_registry = NULL;
     Animation_Registry *animation_registry = NULL;
@@ -83,6 +81,11 @@ struct Game_Globals {
     int font_page_size_y = 0;
 
     Program_Mode program_mode = PROGRAM_MODE_GAME;
+
+    int mouse_x_offset = 0;
+    int mouse_y_offset = 0;
+
+    bool draw_cursor = false;
 };
 
 extern Game_Globals globals;

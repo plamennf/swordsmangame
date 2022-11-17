@@ -1,5 +1,5 @@
+- Keymap
 - Make a way to delete current save file
-- Moving camera with space + left click + mous emove
 - Editor
 - Camera shake
 

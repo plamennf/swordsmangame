@@ -75,6 +75,8 @@ void draw_menu() {
     
     rendering_2d_right_handed(globals.render_width, globals.render_height);
     refresh_global_parameters();
+
+    immediate_set_shader(globals.shader_text);
     
     {
         char *text = "Giovanni Yatsuro";

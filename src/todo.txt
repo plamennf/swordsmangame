@@ -1,4 +1,3 @@
-- Keymap
 - Vars system like the one in Jonathan Blow's games with All.variables and Local.variables
 - Editor
 - Make a way to delete current save file

@@ -10,6 +10,7 @@
 struct Shader_Registry;
 struct Texture_Registry;
 struct Animation_Registry;
+struct Variable_Service;
 
 struct Shader;
 struct Animation;
@@ -91,6 +92,9 @@ struct Game_Globals {
     bool app_is_focused = true;
     
     Keymap *keymap = NULL;
+    Variable_Service *variable_service = NULL;
+
+    Game_Globals();
 };
 
 extern Game_Globals globals;

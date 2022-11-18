@@ -14,12 +14,21 @@
 #include "cursor.h"
 #include "keymap.h"
 #include "os.h"
+#include "variable_service.h"
 
 #include "shader_registry.h"
 #include "texture_registry.h"
 #include "animation_registry.h"
 
 #include <stdio.h>
+
+#define Attach(var) globals.variable_service->attach(#var, &var)
+
+Game_Globals::Game_Globals() {
+    variable_service = new Variable_Service();
+    
+    Attach(time_rate);
+}
 
 const double GAMEPLAY_DT = 1.0 / 60.0; // @Hardcode
 
@@ -35,6 +44,16 @@ static void keymap_do_hotloading() {
             log_error("Failed to load the game keymap. Setting all keys to their defaults\n");
         }
         globals.keymap->modtime = modtime;
+    }
+}
+
+static void vars_do_hotloading() {
+    u64 modtime = globals.variable_service->modtime;
+    get_file_last_write_time("data/All.vars", &modtime);
+
+    if (modtime != globals.variable_service->modtime) {
+        load_vars_file(globals.variable_service, "data/All.vars"); // @ReturnValueIgnored
+        globals.variable_service->modtime = modtime;
     }
 }
 
@@ -563,6 +582,7 @@ static void do_one_frame() {
     globals.texture_registry->do_hotloading();
     globals.animation_registry->do_hotloading();
     keymap_do_hotloading();
+    vars_do_hotloading();
 }
 
 static void main_loop() {
@@ -585,6 +605,8 @@ int main(int argc, char **argv) {
         setcwd(path);
     }
 
+    
+    
     globals.last_time = get_time();
 
     globals.display_width = 1600;
@@ -597,6 +619,8 @@ int main(int argc, char **argv) {
     globals.animation_registry = new Animation_Registry();
 
     init_shaders();
+
+    load_vars_file(globals.variable_service, "data/All.vars"); // @ReturnValueIgnored
     
     init_game();
     

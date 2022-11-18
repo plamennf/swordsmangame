@@ -40,6 +40,7 @@ project swordsmangame
         src/camera.cpp
         src/cursor.cpp
         src/keymap.cpp
+        src/variable_service.cpp
     }
 
     includedirs {

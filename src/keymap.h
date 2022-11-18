@@ -19,6 +19,7 @@ struct Keymap {
 
     Key_Action save_current_game_mode = {};
     Key_Action toggle_fullscreen = {};
+    Key_Action toggle_editor = {};
 };
 
 bool load_keymap(Keymap *keymap, char *filepath);

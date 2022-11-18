@@ -285,6 +285,20 @@ inline u32 argb_color(Vector4 color) {
     return (ia << 24) | (ir << 16) | (ig << 8) | (ib << 0);
 }
 
+struct Vector2i {
+    int x;
+    int y;
+
+    Vector2i() : x(0), y(0) {}
+    Vector2i(int x, int y) : x(x), y(y) {}
+
+    inline int &operator[](int index) {
+        assert(index >= 0);
+        assert(index < 2);
+        return *(&x + index);
+    }
+};
+
 struct Matrix4 {
     union {
         struct {

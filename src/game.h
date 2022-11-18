@@ -44,6 +44,7 @@ struct Time_Info {
 enum Program_Mode {
     PROGRAM_MODE_GAME,
     PROGRAM_MODE_MENU,
+    PROGRAM_MODE_EDITOR,
 };
 
 struct Game_Globals {
@@ -120,3 +121,8 @@ struct Key_Action;
 bool is_key_down(Key_Action action);
 bool is_key_pressed(Key_Action action);
 bool was_key_just_released(Key_Action action);
+
+void set_matrix_for_entities(Entity_Manager *manager);
+void draw_main_scene(Entity_Manager *manager);
+
+void toggle_editor();

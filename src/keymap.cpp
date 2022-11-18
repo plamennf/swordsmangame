@@ -160,6 +160,12 @@ bool load_keymap(Keymap *keymap, char *filepath) {
             line = eat_trailing_spaces(line);
             
             parse_key_action(line, &keymap->toggle_fullscreen);
+        } else if (starts_with(line, "ToggleEditor")) {
+            line += 12;
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+            
+            parse_key_action(line, &keymap->toggle_editor);
         }
     }
 
@@ -177,4 +183,6 @@ void set_keys_to_default(Keymap *keymap) {
     keymap->save_current_game_mode.key_code = 'P';
     keymap->save_current_game_mode.ctrl_down = true;
     keymap->toggle_fullscreen.key_code = KEY_F11;
+    keymap->toggle_editor.key_code = 'E';
+    keymap->toggle_editor.ctrl_down = true;
 }

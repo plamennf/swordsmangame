@@ -7,3 +7,4 @@ MoveDown S
 
 SaveCurrentGameMode Ctrl-P
 ToggleFullscreen F11
+ToggleEditor Ctrl-E

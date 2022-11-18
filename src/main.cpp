@@ -15,6 +15,7 @@
 #include "keymap.h"
 #include "os.h"
 #include "variable_service.h"
+#include "editor.h"
 
 #include "shader_registry.h"
 #include "texture_registry.h"
@@ -307,8 +308,7 @@ static void init_game() {
     globals.current_game_mode = load_game_mode(GAME_MODE_OVERWORLD);
 }
 
-static void set_matrix_for_entities() {
-    auto manager = get_entity_manager();
+void set_matrix_for_entities(Entity_Manager *manager) {
     Tilemap *tm = manager->tilemap;
     Camera *camera = manager->camera;
     
@@ -320,18 +320,7 @@ static void set_matrix_for_entities() {
     global_parameters.transform = global_parameters.proj_matrix * global_parameters.view_matrix;    
 }
 
-static void draw_one_frame() {
-    set_render_targets(the_back_buffer, NULL);
-    clear_color_target(the_back_buffer, 0.0f, 1.0f, 1.0f, 1.0f, globals.render_area);
-    set_viewport(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
-    set_scissor(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
-    
-    //rendering_2d_right_handed(globals.render_width, globals.render_height);
-    set_matrix_for_entities();
-    refresh_global_parameters();
-    
-    auto manager = get_entity_manager();
-
+void draw_main_scene(Entity_Manager *manager) {
     //
     // Draw tilemaps
     //
@@ -456,6 +445,19 @@ static void draw_one_frame() {
         immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, Vector4(1, 1, 1, 1));
         immediate_flush();
     }
+}
+
+static void draw_one_frame() {
+    set_render_targets(the_back_buffer, NULL);
+    clear_color_target(the_back_buffer, 0.0f, 1.0f, 1.0f, 1.0f, globals.render_area);
+    set_viewport(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
+    set_scissor(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
+    
+    auto manager = get_entity_manager();
+    set_matrix_for_entities(manager);
+    refresh_global_parameters();
+    
+    draw_main_scene(manager);
     
     draw_hud();
 }
@@ -534,6 +536,10 @@ static void do_one_frame() {
         os_show_cursor(true);
     }
 
+    if (is_key_pressed(globals.keymap->toggle_editor)) {
+        toggle_editor();
+    }
+    
     globals.draw_cursor = false;
     if (globals.program_mode == PROGRAM_MODE_GAME) {
         if (globals.app_is_focused) {
@@ -554,6 +560,8 @@ static void do_one_frame() {
         
         if (globals.program_mode == PROGRAM_MODE_MENU) {
             update_menu();
+        } else if (globals.program_mode == PROGRAM_MODE_EDITOR) {
+            update_editor();
         }
     }
 
@@ -561,6 +569,8 @@ static void do_one_frame() {
         draw_one_frame();
     } else if (globals.program_mode == PROGRAM_MODE_MENU) {
         draw_menu();
+    } else if (globals.program_mode == PROGRAM_MODE_EDITOR) {
+        draw_editor();
     }
     
     if (globals.camera_is_moving) {
@@ -833,4 +843,12 @@ static void init_overworld(Game_Mode_Info *info) {
 Entity_Manager *get_entity_manager() {
     auto info = globals.current_game_mode;
     return info->entity_manager;
+}
+
+void toggle_editor() {
+    if (globals.program_mode == PROGRAM_MODE_GAME) {
+        globals.program_mode = PROGRAM_MODE_EDITOR;
+    } else if (globals.program_mode = PROGRAM_MODE_EDITOR) {
+        globals.program_mode = PROGRAM_MODE_GAME;
+    }
 }

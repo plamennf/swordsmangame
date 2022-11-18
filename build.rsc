@@ -41,6 +41,7 @@ project swordsmangame
         src/cursor.cpp
         src/keymap.cpp
         src/variable_service.cpp
+        src/editor.cpp
     }
 
     includedirs {

@@ -1,5 +1,6 @@
 - Editor
 - Tilemap editor
+- Undo system for editor
 - Mouse input in main menu
 - Make a way to delete current save file
 - Camera shake

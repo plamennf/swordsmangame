@@ -1,0 +1,9 @@
+[1] # Version number
+
+MoveLeft A
+MoveRight D
+MoveUp W
+MoveDown S
+
+SaveCurrentGameMode Ctrl-P
+ToggleFullscreen F11

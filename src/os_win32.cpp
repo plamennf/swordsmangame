@@ -152,7 +152,11 @@ static LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
 
     case WM_ACTIVATEAPP: {
         bool active = static_cast <bool>(wparam);
-        //cursor_visible = !active;
+
+        Event event = {};
+        event.type = EVENT_TYPE_WINDOW_FOCUS;
+        event.has_received_focus = active;
+        globals.events_this_frame.add(event);
         
         break;
     }

@@ -44,6 +44,7 @@ enum Event_Type {
     EVENT_TYPE_KEYBOARD,
     EVENT_TYPE_MOUSE_MOVE,
     EVENT_TYPE_MOUSE_WHEEL,
+    EVENT_TYPE_WINDOW_FOCUS,
 };
 
 struct Event {
@@ -56,6 +57,8 @@ struct Event {
     int x = 0;
     int y = 0;
     int delta = 0;
+
+    bool has_received_focus = false;
 };
 
 struct Window_Resize_Record {

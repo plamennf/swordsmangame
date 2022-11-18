@@ -12,6 +12,8 @@
 #include "main_menu.h"
 #include "camera.h"
 #include "cursor.h"
+#include "keymap.h"
+#include "os.h"
 
 #include "shader_registry.h"
 #include "texture_registry.h"
@@ -22,6 +24,19 @@
 const double GAMEPLAY_DT = 1.0 / 60.0; // @Hardcode
 
 static bool save_current_game_mode();
+
+static void keymap_do_hotloading() {
+    u64 modtime = globals.keymap->modtime;
+    get_file_last_write_time("data/Game.keymap", &modtime);
+
+    if (modtime != globals.keymap->modtime) {
+        if (!load_keymap(globals.keymap, "data/Game.keymap")) {
+            set_keys_to_default(globals.keymap);
+            log_error("Failed to load the game keymap. Setting all keys to their defaults\n");
+        }
+        globals.keymap->modtime = modtime;
+    }
+}
 
 static float move_toward(float a, float b, float amount) {
     if (a > b) {
@@ -52,6 +67,66 @@ bool was_key_just_released(int key_code) {
     return key_infos[key_code].was_down && !key_infos[key_code].is_down;
 }
 
+bool is_key_down(Key_Action action) {
+    if (action.alt_down && !is_key_down(KEY_ALT)) {
+        return false;
+    }
+
+    if (action.shift_down && !is_key_down(KEY_SHIFT)) {
+        return false;
+    }
+
+    if (action.ctrl_down && !is_key_down(KEY_CTRL)) {
+        return false;
+    }
+
+    if (!is_key_down(action.key_code)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool is_key_pressed(Key_Action action) {
+    if (action.alt_down && !is_key_down(KEY_ALT)) {
+        return false;
+    }
+
+    if (action.shift_down && !is_key_down(KEY_SHIFT)) {
+        return false;
+    }
+
+    if (action.ctrl_down && !is_key_down(KEY_CTRL)) {
+        return false;
+    }
+
+    if (!is_key_pressed(action.key_code)) {
+        return false;
+    }
+
+    return true;    
+}
+
+bool was_key_just_released(Key_Action action) {
+    if (action.alt_down && !is_key_down(KEY_ALT)) {
+        return false;
+    }
+
+    if (action.shift_down && !is_key_down(KEY_SHIFT)) {
+        return false;
+    }
+
+    if (action.ctrl_down && !is_key_down(KEY_CTRL)) {
+        return false;
+    }
+
+    if (!was_key_just_released(action.key_code)) {
+        return false;
+    }
+
+    return true;
+}
+
 static double accumulated_dt = 0.0;
 
 static void respond_to_event_for_game(Event event) {
@@ -70,11 +145,11 @@ static void simulate_game() {
     manager->camera->update(dt);
     
     Vector2 move_dir(0.0f, 0.0f);
-    if (is_key_down('A')) move_dir.x -= 1.0f;
-    if (is_key_down('D')) move_dir.x += 1.0f;
+    if (is_key_down(globals.keymap->move_left)) move_dir.x -= 1.0f;
+    if (is_key_down(globals.keymap->move_right)) move_dir.x += 1.0f;
 
-    if (is_key_down('W')) move_dir.y += 1.0f;
-    if (is_key_down('S')) move_dir.y -= 1.0f;
+    if (is_key_down(globals.keymap->move_up)) move_dir.y += 1.0f;
+    if (is_key_down(globals.keymap->move_down)) move_dir.y -= 1.0f;
     move_dir = normalize_or_zero(move_dir);
 
     float speed = 2.0f;
@@ -113,7 +188,7 @@ static void simulate_game() {
                     tile_rect.y = ypos;
                     tile_rect.width = 1.0f;
                     tile_rect.height = 1.0f;
-
+                    
                     bool has_collided = false;
                     
                     if ((guy->velocity.x > 0.0f && is_touching_left(player_rect, tile_rect, guy->velocity)) || (guy->velocity.x < 0.0f && is_touching_right(player_rect, tile_rect, guy->velocity))) {
@@ -157,11 +232,9 @@ static void simulate_game() {
 }
 
 static void respond_to_input() {
-    if (is_key_down(KEY_CTRL)) {
-        if (is_key_pressed('P')) {
-            save_current_game_mode();
-            log("Current game mode saved successfully.\n");
-        }
+    if (is_key_pressed(globals.keymap->save_current_game_mode)) {
+        save_current_game_mode();
+        log("Current game mode saved successfully.\n");
     }
 
     if (is_key_pressed(KEY_ESCAPE)) {
@@ -170,7 +243,7 @@ static void respond_to_input() {
         }
     }
 
-    if (is_key_pressed(KEY_F11)) {
+    if (is_key_pressed(globals.keymap->toggle_fullscreen)) {
         window_toggle_fullscreen(globals.my_window);
     }
 }
@@ -206,6 +279,12 @@ static void init_shaders() {
 }
 
 static void init_game() {
+    globals.keymap = new Keymap();
+    if (!load_keymap(globals.keymap, "data/Game.keymap")) {
+        set_keys_to_default(globals.keymap);
+        log_error("Failed to load the game keymap. Setting all keys to their defaults\n");
+    }
+    
     globals.current_game_mode = load_game_mode(GAME_MODE_OVERWORLD);
 }
 
@@ -405,6 +484,10 @@ static void do_one_frame() {
             
             break;
         }
+
+        case EVENT_TYPE_WINDOW_FOCUS:
+            globals.app_is_focused = event.has_received_focus;
+            break;
         }
 
         if (globals.program_mode == PROGRAM_MODE_GAME) {
@@ -426,11 +509,19 @@ static void do_one_frame() {
     
     respond_to_input();
 
-    os_show_cursor(false);
+    if (globals.app_is_focused) {
+        os_show_cursor(false);
+    } else {
+        os_show_cursor(true);
+    }
 
     globals.draw_cursor = false;
     if (globals.program_mode == PROGRAM_MODE_GAME) {
-        os_constrain_mouse(globals.my_window);
+        if (globals.app_is_focused) {
+            os_constrain_mouse(globals.my_window);
+        } else {
+            os_unconstrain_mouse();
+        }
         globals.draw_cursor = false;
         
         while (accumulated_dt >= GAMEPLAY_DT) {
@@ -471,6 +562,7 @@ static void do_one_frame() {
     globals.shader_registry->do_hotloading();
     globals.texture_registry->do_hotloading();
     globals.animation_registry->do_hotloading();
+    keymap_do_hotloading();
 }
 
 static void main_loop() {

@@ -39,6 +39,7 @@ project swordsmangame
         src/main_menu.cpp
         src/camera.cpp
         src/cursor.cpp
+        src/keymap.cpp
     }
 
     includedirs {

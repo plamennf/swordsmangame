@@ -15,6 +15,7 @@ struct Shader;
 struct Animation;
 
 struct Entity_Manager;
+struct Keymap;
 
 #define GAME_MODE_FILE_VERSION 1
 
@@ -87,6 +88,9 @@ struct Game_Globals {
 
     bool draw_cursor = false;
     bool camera_is_moving = false;
+    bool app_is_focused = true;
+    
+    Keymap *keymap = NULL;
 };
 
 extern Game_Globals globals;
@@ -106,3 +110,9 @@ bool was_key_just_released(int key_code);
 Game_Mode_Info *load_game_mode(Game_Mode game_mode);
 
 Entity_Manager *get_entity_manager();
+
+struct Key_Action;
+
+bool is_key_down(Key_Action action);
+bool is_key_pressed(Key_Action action);
+bool was_key_just_released(Key_Action action);

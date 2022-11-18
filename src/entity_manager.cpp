@@ -37,8 +37,10 @@ Guy *Entity_Manager::make_guy() {
 }
 
 Tilemap *Entity_Manager::make_tilemap() {
+    assert(!tilemap);
+    
     Tilemap *tm = new Tilemap();
-    by_type._Tilemap.add(tm);
+    tilemap = tm;
     register_entity(tm);
     tm->type = ENTITY_TYPE_TILEMAP;
     return tm;
@@ -53,4 +55,18 @@ Enemy *Entity_Manager::make_enemy() {
     enemy->size = Vector2(2, 2);
     
     return enemy;
+}
+
+Guy *Entity_Manager::get_active_hero() {
+    for (Guy *guy : by_type._Guy) {
+        if (guy->is_active) return guy;
+    }
+    return NULL;
+}
+
+void Entity_Manager::set_active_hero(Guy *guy) {
+    for (Guy *g : by_type._Guy) {
+        g->is_active = false;
+    }
+    guy->is_active = true;
 }

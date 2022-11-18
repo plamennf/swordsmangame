@@ -35,6 +35,8 @@ enum Guy_Orientation {
 };
 
 struct Guy : public Entity {
+    bool is_active = false;
+    
     Vector2 size;
     Vector2 velocity;
     Vector2 max_velocity;

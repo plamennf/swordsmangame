@@ -97,10 +97,11 @@ static void simulate_game() {
     Rectangle2 player_rect;
     player_rect.x = guy->position.x;
     player_rect.y = guy->position.y;
-    player_rect.width = 0.95f;
+    player_rect.width = 0.9f;
     player_rect.height = 0.95f;
-    
-    for (Tilemap *tm : manager->by_type._Tilemap) {
+
+    Tilemap *tm = manager->tilemap;
+    if (tm) {
         float xpos = tm->position.x;
         float ypos = tm->position.y;
         for (int y = 0; y < tm->height; y++) {
@@ -210,7 +211,7 @@ static void init_game() {
 
 static void set_matrix_for_entities() {
     auto manager = get_entity_manager();
-    Tilemap *tm = manager->by_type._Tilemap[0]; // @Hack
+    Tilemap *tm = manager->tilemap;
     Camera *camera = manager->camera;
     
     float half_width = 0.5f * tm->width;
@@ -241,7 +242,8 @@ static void draw_one_frame() {
         
         immediate_set_shader(globals.shader_tile);
         immediate_begin();
-        for (Tilemap *tm : manager->by_type._Tilemap) {
+        Tilemap *tm = manager->tilemap;
+        if (tm) {
             float xpos = tm->position.x;
             float ypos = tm->position.y;// + (tm->height - 1);
             
@@ -412,7 +414,7 @@ static void do_one_frame() {
 
     {
         auto manager = get_entity_manager();
-        Tilemap *tilemap = manager->by_type._Tilemap[0]; // @Hack
+        Tilemap *tilemap = manager->tilemap;
         globals.render_area = aspect_ratio_fit(globals.display_width, globals.display_height, tilemap->width, tilemap->height);
         
         globals.render_width = globals.render_area.width;
@@ -701,6 +703,7 @@ static void init_overworld(Game_Mode_Info *info) {
     Guy *guy = manager->make_guy();
     guy->position = Vector2(0.0f, 0.5f);
     guy->size = Vector2(1.0f, 1.0f);
+    manager->set_active_hero(guy);
     
     Tilemap *tilemap = manager->make_tilemap();
     load_tilemap(tilemap, "test");

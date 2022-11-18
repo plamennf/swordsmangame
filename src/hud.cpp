@@ -14,7 +14,7 @@ static double dt_for_draw;
 static void draw_fps() {
     immediate_set_shader(globals.shader_text);
 
-    float dt = globals.time_info.current_dt;
+    float dt = globals.time_info.ui_dt;
 
     num_seconds_since_last_update += dt;
     num_frames_since_last_update++;

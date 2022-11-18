@@ -494,7 +494,7 @@ static void do_one_frame() {
             respond_to_event_for_game(event);
         }
     }
-
+    
     {
         auto manager = get_entity_manager();
         Tilemap *tilemap = manager->tilemap;
@@ -606,7 +606,7 @@ int main(int argc, char **argv) {
 }
 
 float get_gameplay_dt() {
-    return (float)GAMEPLAY_DT;
+    return (float)((double)GAMEPLAY_DT * globals.time_rate);
 }
 
 static char *get_savegame_name_for_game_mode(Game_Mode game_mode) {

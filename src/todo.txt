@@ -1,9 +1,11 @@
 - Vars system like the one in Jonathan Blow's games with All.variables and Local.variables
 - Editor
+- Tilemap editor
+- Mouse input in main menu
 - Make a way to delete current save file
 - Camera shake
 
-- Suggestions for the BIG MAN (Angel Enchev):
+- Suggestions from the BIG MAN (Angel Enchev):
     - Cactus
     - Sand Golem
     - Tumbleweed

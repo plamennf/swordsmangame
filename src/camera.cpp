@@ -3,11 +3,13 @@
 #include "game.h"
 
 void Camera::handle_zoom(int delta) {
-    zoom_level -= delta * 0.001f;
-    zoom_level = Max(zoom_level, 0.01f);
+    zoom_t_target -= delta * 0.001f;
+    zoom_t_target = Max(zoom_t_target, 0.01f);
 }
 
 void Camera::update(float dt) {
+    zoom_t = move_toward(zoom_t, zoom_t_target, globals.zoom_speed);
+    
     if (is_key_down(KEY_SPACE) && is_key_down(MOUSE_BUTTON_LEFT)) {
         float speed = 2.0f;
         

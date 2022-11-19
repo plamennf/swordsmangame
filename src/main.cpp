@@ -29,6 +29,7 @@ Game_Globals::Game_Globals() {
     variable_service = new Variable_Service();
     
     Attach(time_rate);
+    Attach(zoom_speed);
 }
 
 const double GAMEPLAY_DT = 1.0 / 60.0; // @Hardcode
@@ -58,7 +59,7 @@ static void vars_do_hotloading() {
     }
 }
 
-static float move_toward(float a, float b, float amount) {
+float move_toward(float a, float b, float amount) {
     if (a > b) {
         a -= amount;
         if (a < b) a = b;
@@ -315,7 +316,7 @@ void set_matrix_for_entities(Entity_Manager *manager) {
     float half_width = 0.5f * tm->width;
     float half_height = 0.5f  * tm->height;
     
-    global_parameters.proj_matrix = make_orthographic(-half_width * camera->zoom_level, half_width * camera->zoom_level, -half_height * camera->zoom_level, half_height * camera->zoom_level);
+    global_parameters.proj_matrix = make_orthographic(-half_width * camera->zoom_t, half_width * camera->zoom_t, -half_height * camera->zoom_t, half_height * camera->zoom_t);
     global_parameters.view_matrix = camera->get_matrix();
     global_parameters.transform = global_parameters.proj_matrix * global_parameters.view_matrix;    
 }
@@ -823,7 +824,8 @@ static void init_overworld(Game_Mode_Info *info) {
     
     Camera *camera = new Camera();
     camera->position = Vector2(0, 0);
-    camera->zoom_level = 1.0f;
+    camera->zoom_t_target = 1.0f;
+    camera->zoom_t = 1.0f;
     manager->camera = camera;
     
     Guy *guy = manager->make_guy();

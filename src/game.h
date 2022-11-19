@@ -91,6 +91,8 @@ struct Game_Globals {
     bool draw_cursor = false;
     bool camera_is_moving = false;
     bool app_is_focused = true;
+
+    float zoom_speed = 0.01f;
     
     Keymap *keymap = NULL;
     Variable_Service *variable_service = NULL;
@@ -126,3 +128,5 @@ void set_matrix_for_entities(Entity_Manager *manager);
 void draw_main_scene(Entity_Manager *manager);
 
 void toggle_editor();
+
+float move_toward(float a, float b, float amount);

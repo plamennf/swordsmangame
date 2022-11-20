@@ -130,3 +130,5 @@ void draw_main_scene(Entity_Manager *manager);
 void toggle_editor();
 
 float move_toward(float a, float b, float amount);
+
+Vector2 screen_space_to_world_space(int x, int y, bool is_position);

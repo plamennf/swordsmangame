@@ -22,6 +22,8 @@ struct Entity_Manager {
 
     Camera *camera = NULL;
     Tilemap *tilemap = NULL;
+
+    Entity *get_entity_by_id(int id);
     
     Guy *make_guy();
     Tilemap *make_tilemap();

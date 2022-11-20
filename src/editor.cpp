@@ -4,12 +4,30 @@
 #include "draw_help.h"
 #include "game.h"
 #include "os.h"
+#include "entities.h"
+#include "entity_manager.h"
 
-static Vector2i currently_selected_tile;
-static bool has_currently_selected_tile;
+static int currently_selected_entity_id = -1;
+static int mouse_x_last_frame;
+static int mouse_y_last_frame;
+static int mouse_x_offset;
+static int mouse_y_offset;
 
 void update_editor() {
-    if (is_key_down(MOUSE_BUTTON_LEFT)) {
+    {
+        int mx, my;
+        os_get_mouse_pointer_position(&mx, &my, globals.my_window, true);
+
+        mouse_x_offset = mx - mouse_x_last_frame;
+        mouse_y_offset = my - mouse_y_last_frame;
+
+        mouse_x_last_frame = mx;
+        mouse_y_last_frame = my;
+    }
+    
+    auto manager = get_entity_manager();
+    
+    if (is_key_pressed(MOUSE_BUTTON_LEFT)) {
         int x, y;
         os_get_mouse_pointer_position(&x, &y, globals.my_window, true);
 
@@ -26,26 +44,57 @@ void update_editor() {
         
         nx *= globals.world_space_size_x;
         ny *= globals.world_space_size_y;
-        
-        int ix = (int)nx;
-        int iy = (int)ny;
 
-        currently_selected_tile = Vector2i(ix, iy);
-        has_currently_selected_tile = true;
+        nx -= globals.world_space_size_x * 0.5f;
+        ny -= globals.world_space_size_y * 0.5f;
+
+        int entity_id = -1;
+        for (Guy *guy : manager->by_type._Guy) {
+            if (nx >= guy->position.x && ny >= guy->position.y &&
+                nx <= guy->position.x + guy->size.x && ny <= guy->position.y + guy->size.y) {
+                entity_id = guy->id;
+                break;
+            }
+        }
+
+        if (entity_id == -1) {
+            for (Enemy *enemy : manager->by_type._Enemy) {
+                if (nx >= enemy->position.x && ny >= enemy->position.y &&
+                    nx <= enemy->position.x + enemy->size.x && ny <= enemy->position.y + enemy->size.y) {
+                    entity_id = enemy->id;
+                    break;
+                }
+            }
+        }
+
+        currently_selected_entity_id = entity_id;
+    }
+
+    if (currently_selected_entity_id != -1) {
+        if (is_key_down(MOUSE_BUTTON_LEFT) && (mouse_x_offset || mouse_y_offset)) {
+            Entity *e = manager->get_entity_by_id(currently_selected_entity_id);
+            if (!e) return;
+            
+            Vector2 mpos = screen_space_to_world_space(mouse_x_offset, mouse_y_offset, false);
+            e->position += mpos;
+        }
     }
 }
 
-static void draw_outline(Vector2i _position) {
-    Vector2 position((float)_position.x, (float)_position.y);
-    position.x -= 8.0f;
-    position.y -= 4.5f;
+static void draw_outline_around_entity(int entity_id) {
+    auto manager = get_entity_manager();
+    Entity *e = manager->get_entity_by_id(entity_id);
+    if (!e) return;
+    
+    Vector2 position = e->position;
 
     Vector4 color(0, 1, 0, 1);
     
-    float horizontal_line_width = 1.0f;
+    float horizontal_line_width = e->size.x;//1.0f;
     float horizontal_line_height = 0.01f;
     float vertical_line_width = 0.01f;
-    float vertical_line_height = 1.0f - 2.0f*horizontal_line_height;
+    //float vertical_line_height = 1.0f - 2.0f*horizontal_line_height;
+    float vertical_line_height = e->size.y - 2.0f*horizontal_line_height;
     
     immediate_begin();
 
@@ -106,7 +155,7 @@ void draw_editor() {
     draw_main_scene(manager);
 
     immediate_set_shader(globals.shader_color);
-    if (has_currently_selected_tile) {
-        draw_outline(currently_selected_tile);
+    if (currently_selected_entity_id != -1) {
+        draw_outline_around_entity(currently_selected_entity_id);
     }
 }

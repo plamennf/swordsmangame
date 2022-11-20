@@ -854,3 +854,21 @@ void toggle_editor() {
         globals.program_mode = PROGRAM_MODE_GAME;
     }
 }
+
+Vector2 screen_space_to_world_space(int x, int y, bool is_position) {
+    float fx = (float)x;
+    float fy = (float)y;
+
+    fx /= globals.display_width;
+    fy /= globals.display_height;
+
+    fx *= globals.world_space_size_x;
+    fy *= globals.world_space_size_y;
+
+    if (is_position) {
+        fx -= globals.world_space_size_x * 0.5f;
+        fy -= globals.world_space_size_y * 0.5f;
+    }
+
+    return Vector2(fx, fy);
+}

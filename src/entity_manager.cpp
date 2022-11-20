@@ -13,6 +13,12 @@ void Entity_Manager::register_entity(Entity *e) {
     next_entity_id += 1;
 }
 
+Entity *Entity_Manager::get_entity_by_id(int id) {
+    Entity **_e = entity_lookup.find(id);
+    if (_e) return *_e;
+    return NULL;
+}
+
 Guy *Entity_Manager::make_guy() {
     Guy *guy = new Guy();
     by_type._Guy.add(guy);

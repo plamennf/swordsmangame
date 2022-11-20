@@ -20,6 +20,7 @@ struct Entity {
     Entity_Manager *manager;
 
     Vector2 position;
+    Vector2 size;
 };
 
 enum Guy_State {
@@ -37,7 +38,6 @@ enum Guy_Orientation {
 struct Guy : public Entity {
     bool is_active = false;
     
-    Vector2 size;
     Vector2 velocity;
     Vector2 max_velocity;
 
@@ -85,6 +85,5 @@ struct Tilemap : public Entity {
 bool load_tilemap(Tilemap *tilemap, char *name);
 
 struct Enemy : public Entity {
-    Vector2 size;
     Texture *texture;
 };

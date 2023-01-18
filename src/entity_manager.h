@@ -7,12 +7,14 @@ struct Entity;
 struct Guy;
 struct Tilemap;
 struct Enemy;
+struct Thumbleweed;
 
 struct Camera;
 
 struct Entities_By_Type {
     Array <Guy *> _Guy;
     Array <Enemy *> _Enemy;
+    Array <Thumbleweed *> _Thumbleweed;
 };
 
 struct Entity_Manager {
@@ -28,7 +30,8 @@ struct Entity_Manager {
     Guy *make_guy();
     Tilemap *make_tilemap();
     Enemy *make_enemy();
-
+    Thumbleweed *make_thumbleweed();
+    
     Guy *get_active_hero();
     void set_active_hero(Guy *guy);
     

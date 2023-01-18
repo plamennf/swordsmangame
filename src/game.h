@@ -79,6 +79,7 @@ struct Game_Globals {
     Shader *shader_text = NULL;
     Shader *shader_guy = NULL;
     Shader *shader_tile = NULL;
+    Shader *shader_lightmap_fx = NULL;
 
     int font_page_size_x = 0;
     int font_page_size_y = 0;
@@ -126,6 +127,7 @@ bool was_key_just_released(Key_Action action);
 
 void set_matrix_for_entities(Entity_Manager *manager);
 void draw_main_scene(Entity_Manager *manager);
+void resolve_to_screen();
 
 void toggle_editor();
 

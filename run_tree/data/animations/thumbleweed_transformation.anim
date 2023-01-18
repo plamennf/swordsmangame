@@ -1,0 +1,14 @@
+[1] # Version number
+
+# TODO: Separate the last two as their own animation and make it play after the first 5 have finished
+
+sampler_rate 3
+is_looping true
+num_frames 7
+tumbleweed transformation
+tumbleweed transformation1
+tumbleweed transformation2
+tumbleweed transformation3
+tumbleweed transformation4
+tumbleweed transformation5
+tumbleweed transformation6

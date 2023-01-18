@@ -51,7 +51,7 @@ void update_menu() {
 
 static void draw_item(int menu_choice, char *text, int y) {
     Dynamic_Font *font = body_font;
-    int x = (globals.render_width - font->get_string_width_in_pixels(text)) / 2;
+    int x = (globals.display_width - font->get_string_width_in_pixels(text)) / 2;
     
     float k = 0.4f;
     Vector4 color(k, k, k, 1);
@@ -69,25 +69,25 @@ void draw_menu() {
     if (!big_font) init_menu_fonts();
     
     set_render_targets(the_back_buffer, NULL);
-    clear_color_target(the_back_buffer, 0.0f, 1.0f, 1.0f, 1.0f, globals.render_area);
-    set_viewport(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
-    set_scissor(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
+    clear_color_target(the_back_buffer, 0.0f, 1.0f, 1.0f, 1.0f);
+    set_viewport(0, 0, globals.display_width, globals.display_height);
+    set_scissor(0, 0, globals.display_width, globals.display_height);
     
-    rendering_2d_right_handed(globals.render_width, globals.render_height);
+    rendering_2d_right_handed(globals.display_width, globals.display_height);
     refresh_global_parameters();
 
     immediate_set_shader(globals.shader_text);
     
     {
         char *text = "Giovanni Yatsuro";
-        int x = (globals.render_width - big_font->get_string_width_in_pixels(text)) / 2;
-        int y = (int)(0.75f * globals.render_height);
+        int x = (globals.display_width - big_font->get_string_width_in_pixels(text)) / 2;
+        int y = (int)(0.75f * globals.display_height);
         int offset = big_font->character_height / 40;
         draw_text(big_font, text, x+offset, y-offset, Vector4(0, 0, 0, 1));
         draw_text(big_font, text, x, y, Vector4(1, 1, 1, 1));
     }
 
-    int y = (int)(0.55 * globals.render_height);
+    int y = (int)(0.55 * globals.display_height);
     char *text = "Resume";
     draw_item(MENU_CHOICE_RESUME, text, y);
 

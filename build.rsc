@@ -8,7 +8,7 @@ project swordsmangame
     type "ConsoleApp"
     outputdir "run_tree"
     objdir "run_tree"
-    outputname "%{ProjectName}"
+    outputname "main"
     
     staticruntime "on"
 
@@ -16,8 +16,9 @@ project swordsmangame
     pchsource "src/pch.cpp"
 
     defines {
-        # UNICODE
-        # _UNICODE
+        UNICODE
+        _UNICODE
+        RENDER_D3D11
     }
 
     cfiles {

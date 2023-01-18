@@ -159,12 +159,7 @@ static void respond_to_event_for_game(Event event) {
     }
 }
 
-static void simulate_game() {
-    float dt = get_gameplay_dt();
-    
-    auto manager = get_entity_manager();
-    manager->camera->update(dt);
-    
+static void update_single_guy(Guy *guy, Entity_Manager *manager, float dt) {
     Vector2 move_dir(0.0f, 0.0f);
     if (is_key_down(globals.keymap->move_left)) move_dir.x -= 1.0f;
     if (is_key_down(globals.keymap->move_right)) move_dir.x += 1.0f;
@@ -172,16 +167,11 @@ static void simulate_game() {
     if (is_key_down(globals.keymap->move_up)) move_dir.y += 1.0f;
     if (is_key_down(globals.keymap->move_down)) move_dir.y -= 1.0f;
     move_dir = normalize_or_zero(move_dir);
-
-    float speed = 2.0f;
     
-    Guy *guy = manager->by_type._Guy[0];
-    if (guy->current_animation) {
-        guy->current_animation->update(dt);
-    }
+    float speed = 2.0f;    
     
     guy->max_velocity = Vector2(1.0f, 1.0f);
-
+    
     guy->velocity.x = move_toward(guy->velocity.x, 0.0f, fabsf(guy->velocity.x) * 2.0f);
     guy->velocity.y = move_toward(guy->velocity.y, 0.0f, fabsf(guy->velocity.y) * 2.0f);
     guy->velocity.x += move_dir.x * speed * dt;
@@ -250,6 +240,22 @@ static void simulate_game() {
         
     guy->set_state(state);
     guy->set_orientation(orientation);
+
+}
+
+static void simulate_game() {
+    float dt = get_gameplay_dt();
+    
+    auto manager = get_entity_manager();
+    manager->camera->update(dt);
+    
+    Guy *guy = manager->get_active_hero();
+    if (guy) {
+        update_single_guy(guy, manager, dt);
+    }
+    
+    for (Thumbleweed *tw : manager->by_type._Thumbleweed) tw->update_current_animation(dt);
+    for (Guy *guy : manager->by_type._Guy) guy->update_current_animation(dt);
 }
 
 static void respond_to_input() {
@@ -257,7 +263,7 @@ static void respond_to_input() {
         save_current_game_mode();
         log("Current game mode saved successfully.\n");
     }
-
+    
     if (is_key_pressed(KEY_ESCAPE)) {
         if (globals.program_mode == PROGRAM_MODE_GAME || globals.program_mode == PROGRAM_MODE_MENU) {
             toggle_menu();
@@ -287,7 +293,7 @@ static void update_time(float dt_max) {
 
     globals.time_info.ui_dt = (float)delta;
     globals.time_info.ui_time = (float)delta;
-
+    
     globals.last_time = now;
 }
 
@@ -297,6 +303,7 @@ static void init_shaders() {
     globals.shader_text = globals.shader_registry->get("text");
     globals.shader_guy = globals.shader_registry->get("guy");
     globals.shader_tile = globals.shader_registry->get("tile");
+    globals.shader_lightmap_fx = globals.shader_registry->get("lightmap_fx");
 }
 
 static void init_game() {
@@ -378,6 +385,78 @@ void draw_main_scene(Entity_Manager *manager) {
         immediate_flush();
     }
 
+    // @TODO: Collapse drawing guys and thumbleweed into one function
+    // and add enemies to them after adding animations to them
+    
+    //
+    // Draw thumbleweeds
+    //
+    immediate_set_shader(globals.shader_guy);
+    for (Thumbleweed *tw : manager->by_type._Thumbleweed) {
+        Animation *animation = tw->current_animation;
+        if (!animation) continue;
+        
+        Texture *texture = animation->get_current_frame();
+        if (!texture) continue;
+        
+        set_texture(0, texture);
+        
+        Vector2 position = tw->position;
+        Vector2 size = tw->size;
+        
+        float hw = size.x * 0.5f;
+        float hh = size.y * 0.5f;
+        
+        Vector2 center = position + Vector2(hw, hh);
+
+        Vector2 p0 = center + Vector2(-hw, -hh);
+        Vector2 p1 = center + Vector2(+hw, -hh);
+        Vector2 p2 = center + Vector2(+hw, +hh);
+        Vector2 p3 = center + Vector2(-hw, +hh);
+
+        Vector2 uv0(0, 0);
+        Vector2 uv1(1, 0);
+        Vector2 uv2(1, 1);
+        Vector2 uv3(0, 1);
+        
+        immediate_begin();
+        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, Vector4(1, 1, 1, 1));
+        immediate_flush();
+    }
+    
+    //
+    // Draw enemies
+    //
+    immediate_set_shader(globals.shader_guy);
+    for (Enemy *enemy : manager->by_type._Enemy) {
+        Texture *texture = enemy->texture;
+        if (!texture) continue;
+        
+        set_texture(0, texture);
+        
+        Vector2 position = enemy->position;
+        Vector2 size = enemy->size;
+        
+        float hw = size.x * 0.5f;
+        float hh = size.y * 0.5f;
+        
+        Vector2 center = position + Vector2(hw, hh);
+
+        Vector2 p0 = center + Vector2(-hw, -hh);
+        Vector2 p1 = center + Vector2(+hw, -hh);
+        Vector2 p2 = center + Vector2(+hw, +hh);
+        Vector2 p3 = center + Vector2(-hw, +hh);
+        
+        Vector2 uv0(0, 0);
+        Vector2 uv1(1, 0);
+        Vector2 uv2(1, 1);
+        Vector2 uv3(0, 1);
+        
+        immediate_begin();
+        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, Vector4(1, 1, 1, 1));
+        immediate_flush();
+    }
+
     //
     // Draw guys
     //
@@ -413,52 +492,102 @@ void draw_main_scene(Entity_Manager *manager) {
         immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, Vector4(1, 1, 1, 1));
         immediate_flush();
     }
+}
 
-    //
-    // Draw enemies
-    //
-    immediate_set_shader(globals.shader_guy);
-    for (Enemy *enemy : manager->by_type._Enemy) {
-        Texture *texture = enemy->texture;
-        if (!texture) continue;
-        
-        set_texture(0, texture);
-        
-        Vector2 position = enemy->position;
-        Vector2 size = enemy->size;
-        
-        float hw = size.x * 0.5f;
-        float hh = size.y * 0.5f;
-        
-        Vector2 center = position + Vector2(hw, hh);
+void resolve_to_screen() {
+    set_render_targets(the_back_buffer, NULL);
+    clear_color_target(the_back_buffer, 0.0f, 0.0f, 0.0f, 1.0f);
+    set_viewport(0, 0, globals.display_width, globals.display_height);
+    set_scissor(0, 0, globals.display_width, globals.display_height);
 
-        Vector2 p0 = center + Vector2(-hw, -hh);
-        Vector2 p1 = center + Vector2(+hw, -hh);
-        Vector2 p2 = center + Vector2(+hw, +hh);
-        Vector2 p3 = center + Vector2(-hw, +hh);
+    rendering_2d_right_handed(globals.display_width, globals.display_height);
+    refresh_global_parameters();
+    
+    immediate_set_shader(globals.shader_lightmap_fx);
+    set_texture(0, the_offscreen_buffer->texture);
+    set_texture(1, the_lightmap_buffer->texture);
+    
+    float x0 = (globals.display_width - globals.render_width) * 0.5f;
+    float y0 = (globals.display_height - globals.render_height) * 0.5f;
+    float x1 = x0 + (float)globals.render_width;
+    float y1 = y0 + (float)globals.render_height;
 
-        Vector2 uv0(0, 0);
-        Vector2 uv1(1, 0);
-        Vector2 uv2(1, 1);
-        Vector2 uv3(0, 1);
+#ifdef RENDER_D3D11
+    // Use flipped-y uvs because d3d11 uses left-hand coordinate systems.
+    Vector2 uv0(0, 1);
+    Vector2 uv1(1, 1);
+    Vector2 uv2(1, 0);
+    Vector2 uv3(0, 0);
+#else
+    Vector2 uv0(0, 0);
+    Vector2 uv1(1, 0);
+    Vector2 uv2(1, 1);
+    Vector2 uv3(0, 1);
+#endif
+    
+    Vector4 color(1, 1, 1, 1);
+    
+    immediate_begin();
+    immediate_quad(x0, y0, x1, y1, uv0, uv1, uv2, uv3, color);
+    immediate_flush();
+}
+
+static void draw_circle(Vector2 center, float radius, Vector4 color) {
+    const int NUM_TRIANGLES = 100;
+    auto dtheta = TAU / NUM_TRIANGLES;
+    float r = radius;
+
+    for (int i = 0; i < NUM_TRIANGLES; i++) {
+        auto theta0 = i * dtheta;
+        auto theta1 = (i+1) * dtheta;
         
-        immediate_begin();
-        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, Vector4(1, 1, 1, 1));
-        immediate_flush();
+        auto v0 = get_vec2(theta0);
+        auto v1 = get_vec2(theta1);
+
+        auto p0 = center;
+        auto p1 = center + r * v0;
+        auto p2 = center + r * v1;
+
+        immediate_triangle(p0, p1, p2, color);
     }
 }
 
+static void draw_lights() {
+    auto manager = get_entity_manager();
+    
+    immediate_set_shader(globals.shader_color);
+    set_matrix_for_entities(manager);
+    refresh_global_parameters();
+    
+    immediate_begin();
+    auto guy = manager->get_active_hero();
+    if (guy) {
+        Vector4 color(1, .5f, .2f, 1);
+        draw_circle(guy->position + (0.5f * guy->size), 1.0f, color);
+    }
+    immediate_flush();
+}
+
 static void draw_one_frame() {
-    set_render_targets(the_back_buffer, NULL);
-    clear_color_target(the_back_buffer, 0.0f, 1.0f, 1.0f, 1.0f, globals.render_area);
-    set_viewport(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
-    set_scissor(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
+    set_render_targets(the_lightmap_buffer, NULL);
+    clear_color_target(the_lightmap_buffer, 19/255.0f, 24/255.0f, 98/255.0f, 1.0f);
+    set_viewport(0, 0, globals.render_width, globals.render_height);
+    set_scissor(0, 0, globals.render_width, globals.render_height);
+
+    draw_lights();
+    
+    set_render_targets(the_offscreen_buffer, NULL);
+    clear_color_target(the_offscreen_buffer, 0.0f, 1.0f, 1.0f, 1.0f);
+    set_viewport(0, 0, globals.render_width, globals.render_height);
+    set_scissor(0, 0, globals.render_width, globals.render_height);
     
     auto manager = get_entity_manager();
     set_matrix_for_entities(manager);
     refresh_global_parameters();
     
     draw_main_scene(manager);
+
+    resolve_to_screen();
     
     draw_hud();
 }
@@ -471,7 +600,7 @@ static void do_one_frame() {
     for (Window_Resize_Record record : globals.window_resizes) {
         int width = record.width;
         int height = record.height;
-
+        
         render_resize(width, height);
         
         globals.display_width = width;
@@ -524,9 +653,17 @@ static void do_one_frame() {
         
         globals.render_width = globals.render_area.width;
         globals.render_height = globals.render_area.height;
-
+        
         globals.world_space_size_x = tilemap->width;
         globals.world_space_size_y = tilemap->height;
+
+        if (!the_lightmap_buffer) {
+            the_lightmap_buffer = create_color_target(globals.render_width, globals.render_height);
+        }
+
+        if (!the_offscreen_buffer) {
+            the_offscreen_buffer = create_color_target(globals.render_width, globals.render_height);
+        }
     }
     
     respond_to_input();
@@ -540,11 +677,13 @@ static void do_one_frame() {
     if (is_key_pressed(globals.keymap->toggle_editor)) {
         toggle_editor();
     }
+
+    os_show_cursor(true);
     
     globals.draw_cursor = false;
     if (globals.program_mode == PROGRAM_MODE_GAME) {
         if (globals.app_is_focused) {
-            os_constrain_mouse(globals.my_window);
+            //os_constrain_mouse(globals.my_window);
         } else {
             os_unconstrain_mouse();
         }
@@ -565,7 +704,7 @@ static void do_one_frame() {
             update_editor();
         }
     }
-
+    
     if (globals.program_mode == PROGRAM_MODE_GAME) {
         draw_one_frame();
     } else if (globals.program_mode == PROGRAM_MODE_MENU) {
@@ -623,14 +762,14 @@ int main(int argc, char **argv) {
     globals.display_width = 1600;
     globals.display_height = 900;
     globals.my_window = create_window(globals.display_width, globals.display_height, "Giovanni Yatsuro");
-    init_render(globals.my_window, globals.display_width, globals.display_height, false);
+    init_render(globals.my_window, globals.display_width, globals.display_height, true);
 
     globals.shader_registry = new Shader_Registry();
     globals.texture_registry = new Texture_Registry();
     globals.animation_registry = new Animation_Registry();
 
     init_shaders();
-
+    
     load_vars_file(globals.variable_service, "data/All.vars"); // @ReturnValueIgnored
     
     init_game();
@@ -840,6 +979,12 @@ static void init_overworld(Game_Mode_Info *info) {
     Enemy *enemy = manager->make_enemy();
     enemy->position = Vector2(-7.0f, -3.5f);
     enemy->texture = globals.texture_registry->get("pachi_demon_knight_front");
+
+    Thumbleweed *thumbleweed = manager->make_thumbleweed();
+    thumbleweed->position = Vector2(-1.0f, -0.5f);
+
+    // TEMPORARY
+    thumbleweed->current_animation = thumbleweed->attack_animation;
 }
 
 Entity_Manager *get_entity_manager() {
@@ -858,7 +1003,7 @@ void toggle_editor() {
 Vector2 screen_space_to_world_space(int x, int y, bool is_position) {
     float fx = (float)x;
     float fy = (float)y;
-
+    
     fx /= globals.display_width;
     fy /= globals.display_height;
 

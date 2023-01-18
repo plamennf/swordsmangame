@@ -4,6 +4,9 @@
 
 Color_Target *the_back_buffer = NULL;
 
+Color_Target *the_offscreen_buffer = NULL;
+Color_Target *the_lightmap_buffer = NULL;
+
 static bool should_vsync;
 
 static Shader *current_shader;
@@ -114,27 +117,83 @@ void swap_buffers() {
 
 void render_resize(int width, int height) {
     if (!swap_chain) return;
+
+    if (the_lightmap_buffer) {
+        release_color_target(the_lightmap_buffer);
+        delete the_lightmap_buffer->texture;
+        delete the_lightmap_buffer;
+        the_lightmap_buffer = NULL; // This will get created again when computing render_area in do_one_frame
+    }
+
+    if (the_offscreen_buffer) {
+        release_color_target(the_offscreen_buffer);
+        delete the_offscreen_buffer->texture;
+        delete the_offscreen_buffer;
+        the_offscreen_buffer = NULL; // This will get created again when computing render_area in do_one_frame
+    }
     
     release_rtv();
     swap_chain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
     create_rtv();
 }
 
+Color_Target *create_color_target(int width, int height) {
+    Color_Target *result = new Color_Target();
+    result->texture = new Texture();
+    
+    D3D11_TEXTURE2D_DESC td = {};
+    td.Width = width;
+    td.Height = height;
+    td.MipLevels = 1;
+    td.ArraySize = 1;
+    td.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+    td.SampleDesc.Count = 1;
+    td.Usage = D3D11_USAGE_DEFAULT;
+    td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    HRESULT hr = device->CreateTexture2D(&td, NULL, &result->texture->texture);
+    AssertHR(hr);
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+    srv_desc.Format = td.Format;
+    srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srv_desc.Texture2D.MostDetailedMip = 0;
+    srv_desc.Texture2D.MipLevels = 1;
+    hr = device->CreateShaderResourceView(result->texture->texture, &srv_desc, &result->texture->srv);
+    AssertHR(hr);
+    
+    D3D11_RENDER_TARGET_VIEW_DESC rtv_desc = {};
+    rtv_desc.Format = td.Format;
+    rtv_desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    rtv_desc.Texture2D = D3D11_TEX2D_RTV{0};
+    hr = device->CreateRenderTargetView(result->texture->texture, &rtv_desc, &result->rtv);
+    AssertHR(hr);
+    
+    return result;
+}
+
+void release_color_target(Color_Target *ct) {
+    SafeRelease(ct->texture->srv);
+    SafeRelease(ct->texture->texture);
+    SafeRelease(ct->rtv);
+}
+
 void set_render_targets(Color_Target *ct, Depth_Target *dt) {
     device_context->OMSetRenderTargets(ct ? 1 : 0, ct ? &ct->rtv : NULL, dt ? dt->dsv : NULL);
 }
 
-void clear_color_target(Color_Target *ct, float r, float g, float b, float a, Rectangle2i rect) {
+void clear_color_target(Color_Target *ct, float r, float g, float b, float a, Rectangle2i *rect) {
     if (ct) {
         float clear_color[4] = { r, g, b, a };
 
         D3D11_RECT drect;
-        drect.left = rect.x;
-        drect.right = rect.x + rect.width;
-        drect.top = rect.y;
-        drect.bottom = rect.y + rect.height;
+        if (rect) {
+            drect.left = rect->x;
+            drect.right = rect->x + rect->width;
+            drect.top = rect->y;
+            drect.bottom = rect->y + rect->height;
+        }
         
-        device_context->ClearView(ct->rtv, clear_color, &drect, 1);
+        device_context->ClearView(ct->rtv, clear_color, rect ? &drect : NULL, rect ? 1 : 0);
     }
 }
 
@@ -199,6 +258,15 @@ void immediate_quad(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, Vector4 colo
     num_immediate_vertices += 6;
 }
 
+void immediate_quad(float x0, float y0, float x1, float y1, Vector4 color) {
+    Vector2 p0(x0, y0);
+    Vector2 p1(x1, y0);
+    Vector2 p2(x1, y1);
+    Vector2 p3(x0, y1);
+    
+    immediate_quad(p0, p1, p2, p3, color);
+}
+
 void immediate_quad(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, Vector2 uv0, Vector2 uv1, Vector2 uv2, Vector2 uv3, Vector4 color) {
     if (num_immediate_vertices + 6 > MAX_IMMEDIATE_VERTICES) immediate_flush();
 
@@ -213,6 +281,15 @@ void immediate_quad(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, Vector2 uv0,
     put_vertex(&v[5], p3, uv3, color);
     
     num_immediate_vertices += 6;
+}
+
+void immediate_quad(float x0, float y0, float x1, float y1, Vector2 uv0, Vector2 uv1, Vector2 uv2, Vector2 uv3, Vector4 color) {
+    Vector2 p0(x0, y0);
+    Vector2 p1(x1, y0);
+    Vector2 p2(x1, y1);
+    Vector2 p3(x0, y1);
+
+    immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
 }
 
 void immediate_triangle(Vector2 p0, Vector2 p1, Vector2 p2, Vector4 color) {
@@ -241,7 +318,7 @@ Shader *immediate_set_shader(Shader *shader) {
     device_context->RSSetState(shader->rasterizer_state);
     device_context->OMSetDepthStencilState(shader->depth_stencil_state, 0);
     device_context->IASetPrimitiveTopology(shader->topology);
-    device_context->PSSetSamplers(0, 1, &shader->sampler_state);
+    device_context->PSSetSamplers(0, shader->sampler_states.count, shader->sampler_states.data);
 
     ID3D11Buffer *cbs[] = { global_parameters_cbo };
     
@@ -345,36 +422,38 @@ bool load_shader_from_memory(Shader *shader, char *preprocessed_text, char *file
     blend_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     device->CreateBlendState(&blend_desc, &shader->blend_state);
 
-    D3D11_SAMPLER_DESC sampler_desc = {};
-    sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
-    sampler_desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    for (auto const &desc : options.samplers) {
+        D3D11_SAMPLER_DESC sampler_desc = {};
+        sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
+        sampler_desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 
-    switch (options.texture_filter_mode) {
-    case TEXTURE_FILTER_LINEAR:
-        sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-        break;
+        switch (desc.texture_filter_mode) {
+            case TEXTURE_FILTER_LINEAR:
+                sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+                break;
 
-    case TEXTURE_FILTER_POINT:
-        sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-        break;
+            case TEXTURE_FILTER_POINT:
+                sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+                break;
+        }
+
+        switch (desc.texture_wrap_mode) {
+            case TEXTURE_WRAP_REPEAT:
+                sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+                sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+                sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+                break;
+
+            case TEXTURE_WRAP_CLAMP:
+                sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+                sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+                sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+                break;
+        }
+
+        device->CreateSamplerState(&sampler_desc, shader->sampler_states.add());
     }
-
-    switch (options.texture_wrap_mode) {
-    case TEXTURE_WRAP_REPEAT:
-        sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-        sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-        sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-        break;
-
-    case TEXTURE_WRAP_CLAMP:
-        sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-        break;
-    }
-
-    device->CreateSamplerState(&sampler_desc, &shader->sampler_state);
-    
+        
     return true;
 }
 
@@ -628,70 +707,62 @@ static char *preprocess_shader(Shader *shader, char *data) {
                 return NULL;
             }
         } else if (starts_with(line, "TextureFilter")) {
-            line += 13;
-            line = eat_spaces(line);
-            line = eat_trailing_spaces(line);
-
-            if (line[0] != '=') {
-                log_error("Expected '=' after TextureFilter");
-                return NULL;
-            }
-            line++;
-
-            line = eat_spaces(line);
-            line = eat_trailing_spaces(line);
-
-            assert(line[0] == '"');
-            line++;
-            
-            char *quote = strrchr(line, '"');
-            if (quote) {
-                line[quote - line] = 0;
-            }
-            
-            if (strings_match(line, "Linear") || strings_match(line, "linear")) {
-                options.texture_filter_mode = TEXTURE_FILTER_LINEAR;
-            } else if (strings_match(line, "Point") || strings_match(line, "point")) {
-                options.texture_filter_mode = TEXTURE_FILTER_POINT;
-            } else {
-                log_error("TextureFilter mode '%s' not supported\n", line);
-                log_error("Valid values are:\n");
-                log_error("    Linear\n");
-                log_error("    Point\n");
-                return NULL;
-            }
+            log_error("!!! Deprecated use sampler attributes !!!\n");
         } else if (starts_with(line, "TextureWrap")) {
-            line += 11;
-            line = eat_spaces(line);
-            line = eat_trailing_spaces(line);
-
-            if (line[0] != '=') {
-                log_error("Expected '=' after TextureWrap");
+            log_error("!!! Deprecated use sampler attributes !!!\n");
+        } else if (starts_with(line, "SamplerState")) {
+            char *at = strrchr(line, ';');
+            if (!at) {
+                log_error("Expected ; after SamplerState but found: %s\n", line);
                 return NULL;
             }
-            line++;
-
-            line = eat_spaces(line);
-            line = eat_trailing_spaces(line);
-
-            assert(line[0] == '"');
-            line++;
             
-            char *quote = strrchr(line, '"');
-            if (quote) {
-                line[quote - line] = 0;
+            at++;
+            Texture_Sampler_Description *desc = options.samplers.add();
+            if (!*at) {
+                desc->texture_filter_mode = TEXTURE_FILTER_LINEAR;
+                desc->texture_wrap_mode = TEXTURE_WRAP_REPEAT;
+                line[at - line] = 0;
+                lines.add(copy_string(line));
+                continue;
             }
             
-            if (strings_match(line, "Repeat") || strings_match(line, "repeat")) {
-                options.texture_wrap_mode = TEXTURE_WRAP_REPEAT;
-            } else if (strings_match(line, "Clamp") || strings_match(line, "clamp")) {
-                options.texture_wrap_mode = TEXTURE_WRAP_CLAMP;
-            } else {
-                log_error("TextureWrap mode '%s' not supported\n", line);
-                log_error("Valid values are:\n");
-                log_error("    Repeat\n");
-                log_error("    Clamp\n");
-                return NULL;
+            line[at - line] = 0;
+            lines.add(copy_string(line));
+            at++;
+            
+            while (*at) {
+                at = eat_spaces(at);
+                at = eat_trailing_spaces(at);
+                
+                if (*at == '@') {
+                    char attrib[4096] = {};
+                    sscanf(at, "@%s ", attrib);
+                    at++;
+
+                    if (strings_match(attrib, "Point") || strings_match(attrib, "point")) {
+                        desc->texture_filter_mode = TEXTURE_FILTER_POINT;
+                        at += 5;
+                    } else if (strings_match(attrib, "Linear") || strings_match(attrib, "linear")) {
+                        desc->texture_filter_mode = TEXTURE_FILTER_LINEAR;
+                        at += 6;
+                    } else if (strings_match(attrib, "Repeat") || strings_match(attrib, "repeat")) {
+                        desc->texture_wrap_mode = TEXTURE_WRAP_REPEAT;
+                        at += 6;
+                    } else if (strings_match(attrib, "Clamp") || strings_match(attrib, "clamp")) {
+                        desc->texture_wrap_mode = TEXTURE_WRAP_CLAMP;
+                        at += 5;
+                    } else {
+                        log_error("Unknown sampler attribute '%s'\n", attrib);
+                        log_error("Valid values are:\n");
+                        log_error("    Point\n");
+                        log_error("    Linear\n");
+                        log_error("    Clamp\n");
+                        return NULL;
+                    }
+                } else {
+                    at++;
+                }
             }
         } else {
             lines.add(copy_string(line));
@@ -699,7 +770,8 @@ static char *preprocess_shader(Shader *shader, char *data) {
     }
 
     shader->options = options;
-
+    options.samplers.data = NULL;
+    
     return concatenate_with_newlines(lines.data, lines.count);
 }
 
@@ -830,3 +902,4 @@ void update_texture(Texture *texture, int x, int y, int width, int height, u8 *d
     
     device_context->UpdateSubresource(texture->texture, 0, &box, data, width * texture->bytes_per_pixel, 0);
 }
+

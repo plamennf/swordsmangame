@@ -95,6 +95,13 @@ inline Vector2 componentwise_product(Vector2 a, Vector2 b) {
     return result;
 }
 
+inline Vector2 get_vec2(float theta) {
+    float ct = cosf(theta);
+    float st = sinf(theta);
+
+    return Vector2(ct, st);
+}
+
 struct Vector3 {
     float x;
     float y;

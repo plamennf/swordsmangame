@@ -1,6 +1,9 @@
 #pragma once
 
 #include "general.h"
+#include "geometry.h"
+#include "array.h"
+#include "hash_table.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,8 +13,6 @@ typedef struct HWND__ *Window_Type;
 #endif
 
 #ifdef _WIN32
-#define UNICODE
-#define _UNICODE
 #include <windows.h>
 #include <d3d11_1.h>
 #include <d3dcompiler.h>

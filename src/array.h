@@ -75,6 +75,7 @@ struct Array {
     void reserve(int size);
     void resize(int size);
     void add(T const &item);
+    T *add();
     int find(T const &item);
     void ordered_remove_by_index(int n);
 
@@ -105,14 +106,12 @@ inline void Array <T>::reserve(int size) {
     void *new_data = use_temporary_storage ? talloc(new_bytes) : malloc(new_bytes);
     if (data) {
         memcpy(new_data, data, old_bytes);
-    }
-
-    if (!use_temporary_storage) {
-        free(data);
+        if (!use_temporary_storage) {
+            free(data);
+        }
     }
 
     data = (T *)new_data;
-
     allocated = new_allocated;
 }
 
@@ -127,6 +126,12 @@ inline void Array <T>::add(T const &item) {
     reserve(count+1);
     data[count] = item;
     count++;
+}
+
+template <typename T>
+inline T *Array <T>::add() {
+    add({});
+    return &data[count-1];
 }
 
 template <typename T>

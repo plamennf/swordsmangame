@@ -161,6 +161,12 @@ bool load_tilemap(Tilemap *tilemap, char *name) {
     return true;
 }
 
+void Entity::update_current_animation(float dt) {
+    if (current_animation) {
+        current_animation->update(dt);
+    }
+}
+
 void Guy::set_animation(Animation *animation) {
     current_animation = animation;
     current_animation->reset();

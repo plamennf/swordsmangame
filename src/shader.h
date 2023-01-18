@@ -24,6 +24,11 @@ enum Texture_Wrap_Mode {
     TEXTURE_WRAP_CLAMP = 1,
 };
 
+struct Texture_Sampler_Description {
+    Texture_Filter_Mode texture_filter_mode;
+    Texture_Wrap_Mode texture_wrap_mode;
+};
+
 struct Shader_Options {
     Render_Vertex_Type vertex_type;
     bool alpha_blend_enabled;
@@ -31,8 +36,7 @@ struct Shader_Options {
     bool front_face_is_counter_clockwise;
     Depth_Test_Mode depth_test_mode;
     bool depth_write_enabled;
-    Texture_Filter_Mode texture_filter_mode;
-    Texture_Wrap_Mode texture_wrap_mode;
+    Array <Texture_Sampler_Description> samplers;
 };
 
 struct Shader {
@@ -49,7 +53,7 @@ struct Shader {
     ID3D11RasterizerState1 *rasterizer_state = 0;
     ID3D11DepthStencilState *depth_stencil_state = 0;
     D3D11_PRIMITIVE_TOPOLOGY topology;
-    ID3D11SamplerState *sampler_state = 0;
+    Array <ID3D11SamplerState *> sampler_states;
 };
 
 struct Global_Parameters {

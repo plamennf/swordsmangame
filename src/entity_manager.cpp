@@ -42,6 +42,24 @@ Guy *Entity_Manager::make_guy() {
     return guy;
 }
 
+Thumbleweed *Entity_Manager::make_thumbleweed() {
+    Thumbleweed *thumbleweed = new Thumbleweed();
+    by_type._Thumbleweed.add(thumbleweed);
+    register_entity(thumbleweed);
+    thumbleweed->type = ENTITY_TYPE_THUMBLEWEED;
+
+    thumbleweed->size = Vector2(1, 1);
+
+    thumbleweed->idle_animation = globals.animation_registry->get("thumbleweed_idle");
+    thumbleweed->moving_animation = globals.animation_registry->get("thumbleweed_moving");
+    thumbleweed->attack_animation = globals.animation_registry->get("thumbleweed_attack");
+    thumbleweed->transformation_animation = globals.animation_registry->get("thumbleweed_transformation");
+
+    thumbleweed->current_animation = thumbleweed->idle_animation;
+
+    return thumbleweed;
+}
+
 Tilemap *Entity_Manager::make_tilemap() {
     assert(!tilemap);
     

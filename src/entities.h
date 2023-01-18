@@ -12,6 +12,7 @@ enum Entity_Type {
     ENTITY_TYPE_GUY = 0,
     ENTITY_TYPE_TILEMAP = 1,
     ENTITY_TYPE_ENEMY = 2,
+    ENTITY_TYPE_THUMBLEWEED = 3,
 };
 
 struct Entity {
@@ -21,6 +22,10 @@ struct Entity {
 
     Vector2 position;
     Vector2 size;
+
+    Animation *current_animation;
+
+    void update_current_animation(float dt);
 };
 
 enum Guy_State {
@@ -43,8 +48,6 @@ struct Guy : public Entity {
 
     Guy_State current_state = GUY_STATE_IDLE;
     Guy_Orientation orientation = GUY_LOOKING_DOWN;
-    
-    Animation *current_animation;
     
     Animation *looking_down_idle_animation;
     Animation *looking_right_idle_animation;
@@ -84,6 +87,14 @@ struct Tilemap : public Entity {
 
 bool load_tilemap(Tilemap *tilemap, char *name);
 
+// @Rename to something else
 struct Enemy : public Entity {
     Texture *texture;
+};
+
+struct Thumbleweed : public Enemy {
+    Animation *idle_animation;
+    Animation *moving_animation;
+    Animation *attack_animation;
+    Animation *transformation_animation;
 };

@@ -144,16 +144,18 @@ static void draw_outline_around_entity(int entity_id) {
 }
 
 void draw_editor() {
-    set_render_targets(the_back_buffer, NULL);
-    clear_color_target(the_back_buffer, 0.0f, 1.0f, 1.0f, 1.0f, globals.render_area);
-    set_viewport(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
-    set_scissor(globals.render_area.x, globals.render_area.y, globals.render_width, globals.render_height);
+    set_render_targets(the_offscreen_buffer, NULL);
+    clear_color_target(the_offscreen_buffer, 0.0f, 1.0f, 1.0f, 1.0f);
+    set_viewport(0, 0, globals.render_width, globals.render_height);
+    set_scissor(0, 0, globals.render_width, globals.render_height);
     
     auto manager = get_entity_manager();
     set_matrix_for_entities(manager);
     refresh_global_parameters();
     draw_main_scene(manager);
 
+    resolve_to_screen();
+    
     immediate_set_shader(globals.shader_color);
     if (currently_selected_entity_id != -1) {
         draw_outline_around_entity(currently_selected_entity_id);

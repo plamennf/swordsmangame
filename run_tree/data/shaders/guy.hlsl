@@ -5,8 +5,6 @@ CullFace = "Off"
 FrontFaceIsCounterClockwise = "True"
 VertexType = "XCUN"
 RenderTopology = "TriangleList"
-TextureFilter = "Point"
-TextureWrap = "Repeat"
 
 #include "data/shaders/shader_globals.hlsli"
 
@@ -27,7 +25,7 @@ VSOutput vertex_main(float3 position : POSITION, float4 color : COLOR, float2 uv
 }
 
 Texture2D dif_tex : register(t0);
-SamplerState tex_samp : register(s0);
+SamplerState tex_samp : register(s0); @Point @Repeat
 
 float4 pixel_main(VSOutput input) : SV_TARGET {
 #if 1

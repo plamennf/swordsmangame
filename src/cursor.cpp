@@ -7,13 +7,6 @@
 
 #include "texture_registry.h"
 
-Vector2 get_vec2(float theta) {
-    float ct = cosf(theta);
-    float st = sinf(theta);
-
-    return Vector2(ct, st);
-}
-
 static void draw_cursor_dot(int x, int y) {
     Vector2 center;
     center.x = static_cast <float>(x);

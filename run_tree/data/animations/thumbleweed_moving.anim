@@ -1,0 +1,7 @@
+[1] # Version number
+
+sampler_rate 6
+is_looping true
+num_frames 2
+tumbleweed moving1
+tumbleweed moving2

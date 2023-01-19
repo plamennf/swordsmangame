@@ -13,12 +13,18 @@ enum Entity_Type {
     ENTITY_TYPE_TILEMAP = 1,
     ENTITY_TYPE_ENEMY = 2,
     ENTITY_TYPE_THUMBLEWEED = 3,
+    ENTITY_TYPE_LIGHT_SOURCE = 4,
+};
+
+enum Entity_Flags {
+    EF_CAN_CAST_SHADOWS = 1,
 };
 
 struct Entity {
     Entity_Type type;
     int id;
     Entity_Manager *manager;
+    int flags;
 
     Vector2 position;
     Vector2 size;
@@ -58,6 +64,8 @@ struct Guy : public Entity {
     Animation *looking_right_moving_animation;
     Animation *looking_up_moving_animation;
     Animation *looking_left_moving_animation;
+
+    int light_source_id;
     
     void set_animation(Animation *animation);
     void set_state(Guy_State state);
@@ -97,4 +105,9 @@ struct Thumbleweed : public Enemy {
     Animation *moving_animation;
     Animation *attack_animation;
     Animation *transformation_animation;
+};
+
+struct Light_Source : public Entity {
+    float radius;
+    Vector3 color;
 };

@@ -8,6 +8,7 @@ struct Guy;
 struct Tilemap;
 struct Enemy;
 struct Thumbleweed;
+struct Light_Source;
 
 struct Camera;
 
@@ -15,11 +16,13 @@ struct Entities_By_Type {
     Array <Guy *> _Guy;
     Array <Enemy *> _Enemy;
     Array <Thumbleweed *> _Thumbleweed;
+    Array <Light_Source *> _Light_Source;
 };
 
 struct Entity_Manager {
     Entities_By_Type by_type;
     Hash_Table <int, Entity *> entity_lookup;
+    Array <Entity *> all_entities;
     int next_entity_id = 0;
 
     Camera *camera = NULL;
@@ -31,6 +34,8 @@ struct Entity_Manager {
     Tilemap *make_tilemap();
     Enemy *make_enemy();
     Thumbleweed *make_thumbleweed();
+
+    Light_Source *make_light_source();
     
     Guy *get_active_hero();
     void set_active_hero(Guy *guy);

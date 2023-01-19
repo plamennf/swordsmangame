@@ -110,7 +110,8 @@ struct Vector3 {
     Vector3() : x(0.0f), y(0.0f), z(0.0f) {}
     Vector3(float x, float y, float z) : x(x), y(y), z(z) {}
     Vector3(float value) : x(value), y(value), z(value) {}
-
+    Vector3(Vector2 xy, float z) : x(xy.x), y(xy.y), z(z) {}
+    
     inline float &operator[](int index) {
         assert(index >= 0);
         assert(index < 3);

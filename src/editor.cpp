@@ -86,9 +86,9 @@ static void draw_outline_around_entity(int entity_id) {
     Entity *e = manager->get_entity_by_id(entity_id);
     if (!e) return;
     
-    Vector2 position = e->position;
-
     Vector4 color(0, 1, 0, 1);
+
+    Vector2 position = e->position;
     
     float horizontal_line_width = e->size.x;//1.0f;
     float horizontal_line_height = 0.01f;
@@ -97,7 +97,7 @@ static void draw_outline_around_entity(int entity_id) {
     float vertical_line_height = e->size.y - 2.0f*horizontal_line_height;
     
     immediate_begin();
-
+    
     {
         Vector2 p0(position.x, position.y);
         Vector2 p1(position.x + horizontal_line_width, position.y);

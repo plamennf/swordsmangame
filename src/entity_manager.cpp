@@ -8,8 +8,10 @@
 
 void Entity_Manager::register_entity(Entity *e) {
     entity_lookup.add(next_entity_id, e);
+    all_entities.add(e);
     e->id = next_entity_id;
     e->manager = this;
+    e->flags = 0;
     next_entity_id += 1;
 }
 
@@ -24,6 +26,7 @@ Guy *Entity_Manager::make_guy() {
     by_type._Guy.add(guy);
     register_entity(guy);
     guy->type = ENTITY_TYPE_GUY;
+    guy->flags |= EF_CAN_CAST_SHADOWS;
 
     guy->size = Vector2(1, 1);
     
@@ -47,6 +50,7 @@ Thumbleweed *Entity_Manager::make_thumbleweed() {
     by_type._Thumbleweed.add(thumbleweed);
     register_entity(thumbleweed);
     thumbleweed->type = ENTITY_TYPE_THUMBLEWEED;
+    thumbleweed->flags |= EF_CAN_CAST_SHADOWS;
 
     thumbleweed->size = Vector2(1, 1);
 
@@ -60,6 +64,15 @@ Thumbleweed *Entity_Manager::make_thumbleweed() {
     return thumbleweed;
 }
 
+Light_Source *Entity_Manager::make_light_source() {
+    Light_Source *source = new Light_Source();
+    by_type._Light_Source.add(source);
+    register_entity(source);
+    source->type = ENTITY_TYPE_LIGHT_SOURCE;
+
+    return source;
+}
+
 Tilemap *Entity_Manager::make_tilemap() {
     assert(!tilemap);
     
@@ -67,6 +80,7 @@ Tilemap *Entity_Manager::make_tilemap() {
     tilemap = tm;
     register_entity(tm);
     tm->type = ENTITY_TYPE_TILEMAP;
+    tm->flags |= EF_CAN_CAST_SHADOWS;
     return tm;
 }
 
@@ -75,6 +89,7 @@ Enemy *Entity_Manager::make_enemy() {
     by_type._Enemy.add(enemy);
     register_entity(enemy);
     enemy->type = ENTITY_TYPE_ENEMY;
+    enemy->flags |= EF_CAN_CAST_SHADOWS;
 
     enemy->size = Vector2(2, 2);
     

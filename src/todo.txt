@@ -1,3 +1,10 @@
+- Shadows:
+    1. Set color write mask to only affect alpha
+    2. Clear to 1
+    3. For each light:
+        - Draw objects that can cast a shadow with an alpha of 0 and tightly surrounded by line segments
+        - Draw light
+
 - Editor
 - Tilemap editor
 - Undo system for editor

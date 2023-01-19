@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "render.h"
 #include "array.h"
+#include "game.h"
 
 Color_Target *the_back_buffer = NULL;
 
@@ -109,6 +110,19 @@ void init_render(Window_Type window, int width, int height, bool vsync) {
     global_parameters_cb_bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     global_parameters_cb_bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     device->CreateBuffer(&global_parameters_cb_bd, NULL, &global_parameters_cbo);
+
+    /* @HACK
+    D3D11_BLEND_DESC blend_desc = {};
+    blend_desc.RenderTarget[0].BlendEnable = true;
+    blend_desc.RenderTarget[0].SrcBlend = D3D11_BLEND_ZERO;
+    blend_desc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+    blend_desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    blend_desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    blend_desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+    blend_desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blend_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    device->CreateBlendState(&blend_desc, &HACK_light_blend_state);
+    */
 }
 
 void swap_buffers() {
@@ -224,6 +238,29 @@ void immediate_flush() {
     num_immediate_vertices = 0;
 }
 
+static void put_vertex(Vertex_XCUN *v, Vector3 position, Vector4 color) {
+    v->position = position;
+    v->color = color;
+    v->uv = Vector2(0, 0);
+    v->normal = Vector3(0, 0, 1);
+}
+
+void immediate_quad(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, Vector4 color) {
+    if (num_immediate_vertices + 6 > MAX_IMMEDIATE_VERTICES) immediate_flush();
+
+    Vertex_XCUN *v = immediate_vertices + num_immediate_vertices;
+    
+    put_vertex(&v[0], p0, color);
+    put_vertex(&v[1], p1, color);
+    put_vertex(&v[2], p2, color);
+    
+    put_vertex(&v[3], p0, color);
+    put_vertex(&v[4], p2, color);
+    put_vertex(&v[5], p3, color);
+    
+    num_immediate_vertices += 6;
+}
+
 static void put_vertex(Vertex_XCUN *v, Vector2 position, Vector4 color) {
     v->position.x = position.x;
     v->position.y = position.y;
@@ -314,7 +351,11 @@ Shader *immediate_set_shader(Shader *shader) {
     device_context->VSSetShader(shader->vs, NULL, 0);
     device_context->PSSetShader(shader->ps, NULL, 0);
     device_context->IASetInputLayout(shader->il);
-    device_context->OMSetBlendState(shader->blend_state, NULL, 0xFFFFFFFF);
+    if (globals.render_type == RENDER_TYPE_LIGHTS) {
+        device_context->OMSetBlendState(NULL, NULL, 0xFFFFFFFF);
+    } else {
+        device_context->OMSetBlendState(shader->blend_state, NULL, 0xFFFFFFFF);
+    }
     device_context->RSSetState(shader->rasterizer_state);
     device_context->OMSetDepthStencilState(shader->depth_stencil_state, 0);
     device_context->IASetPrimitiveTopology(shader->topology);
@@ -412,14 +453,14 @@ bool load_shader_from_memory(Shader *shader, char *preprocessed_text, char *file
     device->CreateDepthStencilState(&ds_desc, &shader->depth_stencil_state);
 
     D3D11_BLEND_DESC blend_desc = {};
-    blend_desc.RenderTarget[0].BlendEnable =  options.alpha_blend_enabled;
-    blend_desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-    blend_desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-    blend_desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-    blend_desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ZERO;
-    blend_desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
-    blend_desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-    blend_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    blend_desc.RenderTarget[0].BlendEnable = (D3D11_BLEND)options.blend.blend_enabled;
+    blend_desc.RenderTarget[0].SrcBlend = (D3D11_BLEND)options.blend.src_blend;
+    blend_desc.RenderTarget[0].DestBlend = (D3D11_BLEND)options.blend.dest_blend;
+    blend_desc.RenderTarget[0].BlendOp = (D3D11_BLEND_OP)options.blend.blend_op;
+    blend_desc.RenderTarget[0].SrcBlendAlpha = (D3D11_BLEND)options.blend.src_blend_alpha;
+    blend_desc.RenderTarget[0].DestBlendAlpha = (D3D11_BLEND)options.blend.dest_blend_alpha;
+    blend_desc.RenderTarget[0].BlendOpAlpha = (D3D11_BLEND_OP)options.blend.blend_op_alpha;
+    blend_desc.RenderTarget[0].RenderTargetWriteMask = options.blend.rt_write_mask;
     device->CreateBlendState(&blend_desc, &shader->blend_state);
 
     for (auto const &desc : options.samplers) {
@@ -454,6 +495,90 @@ bool load_shader_from_memory(Shader *shader, char *preprocessed_text, char *file
         device->CreateSamplerState(&sampler_desc, shader->sampler_states.add());
     }
         
+    return true;
+}
+
+static bool parse_blend_mode(char *line, Blend_Mode *mode) {
+    if (strings_match(line, "Zero") || strings_match(line, "zero")) {
+        *mode = BLEND_ZERO;
+    } else if (strings_match(line, "One") || strings_match(line, "one")) {
+        *mode = BLEND_ONE;
+    } else if (strings_match(line, "SrcColor") || strings_match(line, "srccolor")) {
+        *mode = BLEND_SRC_COLOR;
+    } else if (strings_match(line, "InvSrcColor") || strings_match(line, "invsrccolor")) {
+        *mode = BLEND_INV_SRC_COLOR;
+    } else if (strings_match(line, "SrcAlpha") || strings_match(line, "srcalpha")) {
+        *mode = BLEND_SRC_ALPHA;
+    } else if (strings_match(line, "InvSrcAlpha") || strings_match(line, "invsrcalpha")) {
+        *mode = BLEND_INV_SRC_ALPHA;
+    } else if (strings_match(line, "DestAlpha") || strings_match(line, "destalpha")) {
+        *mode = BLEND_DEST_ALPHA;
+    } else if (strings_match(line, "InvDestAlpha") || strings_match(line, "invdestalpha")) {
+        *mode = BLEND_INV_DEST_ALPHA;
+    } else if (strings_match(line, "DestColor") || strings_match(line, "destcolor")) {
+        *mode = BLEND_DEST_COLOR;
+    } else if (strings_match(line, "InvDestColor") || strings_match(line, "invdestcolor")) {
+        *mode = BLEND_INV_DEST_COLOR;
+    } else if (strings_match(line, "SrcAlphaSat") || strings_match(line, "srcalphasat")) {
+        *mode = BLEND_SRC_ALPHA_SAT;
+    } else if (strings_match(line, "BlendFactor") || strings_match(line, "blendfactor")) {
+        *mode = BLEND_BLEND_FACTOR;
+    } else if (strings_match(line, "InvBlendFactor") || strings_match(line, "invblendfactor")) {
+        *mode = BLEND_INV_BLEND_FACTOR;
+    } else if (strings_match(line, "Src1Color") || strings_match(line, "src1color")) {
+        *mode = BLEND_SRC1_COLOR;
+    } else if (strings_match(line, "InvSrc1Color") || strings_match(line, "invsrc1color")) {
+        *mode = BLEND_INV_SRC1_COLOR;
+    } else if (strings_match(line, "Src1Alpha") || strings_match(line, "src1alpha")) {
+        *mode = BLEND_SRC1_ALPHA;
+    } else if (strings_match(line, "InvSrc1Alpha") || strings_match(line, "invsrc1alpha")) {
+        *mode = BLEND_INV_SRC1_ALPHA;
+    } else {
+        log_error("Blend mode '%s' not supported\n", line);
+        log_error("Valid values are:\n");
+        log_error("    Zero\n");
+        log_error("    One\n");
+        log_error("    SrcColor\n");
+        log_error("    InvSrcColor\n");
+        log_error("    SrcAlpha\n");
+        log_error("    InvSrcAlpha\n");
+        log_error("    DestAlpha\n");
+        log_error("    InvDestAlpha\n");
+        log_error("    DestColor\n");
+        log_error("    InvDestColor\n");
+        log_error("    SrcAlphaSat\n");
+        log_error("    BlendFactor\n");
+        log_error("    InvBlendFactor\n");
+        log_error("    Src1Color\n");
+        log_error("    InvSrc1Color\n");
+        log_error("    Src1Alpha\n");
+        log_error("    InvSrc1Alpha\n");
+        return false;
+    }
+    return true;
+}
+
+static bool parse_blend_op(char *line, Blend_Op *mode) {
+    if (strings_match(line, "Add") || strings_match(line, "add")) {
+        *mode = BLEND_OP_ADD;
+    } else if (strings_match(line, "Subtract") || strings_match(line, "subtract")) {
+        *mode = BLEND_OP_SUBTRACT;
+    } else if (strings_match(line, "RevSubtract") || strings_match(line, "revsubtract")) {
+        *mode = BLEND_OP_REV_SUBTRACT;
+    } else if (strings_match(line, "Min") || strings_match(line, "min")) {
+        *mode = BLEND_OP_MIN;
+    } else if (strings_match(line, "Max") || strings_match(line, "max")) {
+        *mode = BLEND_OP_MAX;
+    } else {
+        log_error("Blend op '%s' not supported\n", line);
+        log_error("Valid values are:\n");
+        log_error("    Add\n");
+        log_error("    Subtract\n");
+        log_error("    RevSubtract\n");
+        log_error("    Min\n");
+        log_error("    Max\n");
+        return false;
+    }
     return true;
 }
 
@@ -567,9 +692,9 @@ static char *preprocess_shader(Shader *shader, char *data) {
             }
             
             if (strings_match(line, "Off") || strings_match(line, "off")) {
-                options.alpha_blend_enabled = false;
+                options.blend.blend_enabled = false;
             } else if (strings_match(line, "On") || strings_match(line, "on")) {
-                options.alpha_blend_enabled = true;
+                options.blend.blend_enabled = true;
             } else {
                 log_error("AlphaBlend mode '%s' not supported\n", line);
                 log_error("Valid values are:\n");
@@ -577,6 +702,171 @@ static char *preprocess_shader(Shader *shader, char *data) {
                 log_error("    Off\n");
                 return NULL;
             }
+        } else if (starts_with(line, "SrcBlendAlpha")) {
+            line += 13;
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            if (line[0] != '=') {
+                log_error("Expected '=' after SrcBlendAlpha\n");                
+                return NULL;
+            }
+            line++;
+            
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            assert(line[0] == '"');
+            line++;
+            
+            char *quote = strrchr(line, '"');
+            if (quote) {
+                line[quote - line] = 0;
+            }
+
+            if (!parse_blend_mode(line, &options.blend.src_blend_alpha)) {
+                return NULL;
+            }
+        } else if (starts_with(line, "DestBlendAlpha")) {
+            line += 14;
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            if (line[0] != '=') {
+                log_error("Expected '=' after DestBlendAlpha\n");                
+                return NULL;
+            }
+            line++;
+            
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            assert(line[0] == '"');
+            line++;
+            
+            char *quote = strrchr(line, '"');
+            if (quote) {
+                line[quote - line] = 0;
+            }
+
+            if (!parse_blend_mode(line, &options.blend.dest_blend_alpha)) {
+                return NULL;
+            }
+        } else if (starts_with(line, "SrcBlend")) {
+            line += 8;
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            if (line[0] != '=') {
+                log_error("Expected '=' after SrcBlend\n");                
+                return NULL;
+            }
+            line++;
+            
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            assert(line[0] == '"');
+            line++;
+            
+            char *quote = strrchr(line, '"');
+            if (quote) {
+                line[quote - line] = 0;
+            }
+
+            if (!parse_blend_mode(line, &options.blend.src_blend)) {
+                return NULL;
+            }
+        } else if (starts_with(line, "DestBlend")) {
+            line += 9;
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            if (line[0] != '=') {
+                log_error("Expected '=' after DestBlend\n");                
+                return NULL;
+            }
+            line++;
+            
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            assert(line[0] == '"');
+            line++;
+            
+            char *quote = strrchr(line, '"');
+            if (quote) {
+                line[quote - line] = 0;
+            }
+
+            if (!parse_blend_mode(line, &options.blend.dest_blend)) {
+                return NULL;
+            }
+        } else if (starts_with(line, "BlendOpAlpha")) {
+            line += 12;
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            if (line[0] != '=') {
+                log_error("Expected '=' after BlendOpAlpha\n");                
+                return NULL;
+            }
+            line++;
+            
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            assert(line[0] == '"');
+            line++;
+            
+            char *quote = strrchr(line, '"');
+            if (quote) {
+                line[quote - line] = 0;
+            }
+
+            if (!parse_blend_op(line, &options.blend.blend_op_alpha)) {
+                return NULL;
+            }
+        } else if (starts_with(line, "BlendOp")) {
+            line += 7;
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            if (line[0] != '=') {
+                log_error("Expected '=' after BlendOp\n");                
+                return NULL;
+            }
+            line++;
+            
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            assert(line[0] == '"');
+            line++;
+            
+            char *quote = strrchr(line, '"');
+            if (quote) {
+                line[quote - line] = 0;
+            }
+
+            if (!parse_blend_op(line, &options.blend.blend_op)) {
+                return NULL;
+            }
+        } else if (starts_with(line, "RTWriteMask")) {
+            line += 11;
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            if (line[0] != '=') {
+                log_error("Expected '=' after SrcBlendAlphaRTWriteMask\n");                
+                return NULL;
+            }
+            line++;
+            
+            line = eat_spaces(line);
+            line = eat_trailing_spaces(line);
+
+            options.blend.rt_write_mask = atoi(line);
         } else if (starts_with(line, "CullFace")) {
             line += 8;
             line = eat_spaces(line);

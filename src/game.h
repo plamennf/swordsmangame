@@ -47,6 +47,11 @@ enum Program_Mode {
     PROGRAM_MODE_EDITOR,
 };
 
+enum Render_Type {
+    RENDER_TYPE_LIGHTS,
+    RENDER_TYPE_MAIN,
+};
+
 struct Game_Globals {
     double last_time = 0.0;
     double time_rate = 1.0;
@@ -80,12 +85,16 @@ struct Game_Globals {
     Shader *shader_guy = NULL;
     Shader *shader_tile = NULL;
     Shader *shader_lightmap_fx = NULL;
+    Shader *shader_light = NULL;
+    Shader *shader_shadow_segments = NULL;
+    Shader *shader_alpha_clear = NULL;
 
     int font_page_size_x = 0;
     int font_page_size_y = 0;
 
     Program_Mode program_mode = PROGRAM_MODE_GAME;
-
+    Render_Type render_type = RENDER_TYPE_MAIN;
+    
     int mouse_x_offset = 0;
     int mouse_y_offset = 0;
 

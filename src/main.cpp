@@ -23,6 +23,8 @@
 
 #include <stdio.h>
 
+#define ENABLE_SHADOWS 1
+
 #define Attach(var) globals.variable_service->attach(#var, &var)
 
 Game_Globals::Game_Globals() {
@@ -241,6 +243,11 @@ static void update_single_guy(Guy *guy, Entity_Manager *manager, float dt) {
     guy->set_state(state);
     guy->set_orientation(orientation);
 
+    auto light_source_e = manager->get_entity_by_id(guy->light_source_id);
+    if (light_source_e) {
+        auto light_source = (Light_Source *)light_source_e;
+        light_source->position = guy->position + (0.5f * guy->size);
+    }
 }
 
 static void simulate_game() {
@@ -304,6 +311,9 @@ static void init_shaders() {
     globals.shader_guy = globals.shader_registry->get("guy");
     globals.shader_tile = globals.shader_registry->get("tile");
     globals.shader_lightmap_fx = globals.shader_registry->get("lightmap_fx");
+    globals.shader_light = globals.shader_registry->get("light");
+    globals.shader_shadow_segments = globals.shader_registry->get("shadow_segments");
+    globals.shader_alpha_clear = globals.shader_registry->get("alpha_clear");
 }
 
 static void init_game() {
@@ -339,52 +349,58 @@ void draw_main_scene(Entity_Manager *manager) {
         immediate_begin();
         Tilemap *tm = manager->tilemap;
         if (tm) {
-            float xpos = tm->position.x;
-            float ypos = tm->position.y;// + (tm->height - 1);
-            
-            for (int y = 0; y < tm->height; y++) {
-                for (int x = 0; x < tm->width; x++) {
-                    Tile *tile = &tm->tiles[y * tm->width + x];
-                    if (tile->id) {
-                        Texture *texture = tm->textures[tile->id-1];
-                        if (texture != last_texture) {
-                            immediate_flush();
-                            set_texture(0, texture);
-                            last_texture = texture;
+            if (globals.render_type == RENDER_TYPE_LIGHTS && tm->flags & EF_CAN_CAST_SHADOWS ||
+                globals.render_type == RENDER_TYPE_MAIN) {
+                float xpos = tm->position.x;
+                float ypos = tm->position.y;// + (tm->height - 1);
+                
+                for (int y = 0; y < tm->height; y++) {
+                    for (int x = 0; x < tm->width; x++) {
+                        Tile *tile = &tm->tiles[y * tm->width + x];
+                        if (tile->id) {
+                            Texture *texture = tm->textures[tile->id-1];
+                            if (texture != last_texture) {
+                                immediate_flush();
+                                set_texture(0, texture);
+                                last_texture = texture;
+                            }
+                        
+                            Vector2 position(xpos, ypos);
+                            Vector2 size(1, 1);
+
+                            float hw = size.x * 0.5f;
+                            float hh = size.y * 0.5f;
+
+                            Vector2 center(position.x + hw, position.y + hh);
+                        
+                            Vector2 p0 = center + Vector2(-hw, -hh);
+                            Vector2 p1 = center + Vector2(+hw, -hh);
+                            Vector2 p2 = center + Vector2(+hw, +hh);
+                            Vector2 p3 = center + Vector2(-hw, +hh);
+                            
+                            Vector2 uv0(0, 0);
+                            Vector2 uv1(1, 0);
+                            Vector2 uv2(1, 1);
+                            Vector2 uv3(0, 1);
+
+                            Vector4 color(1, 1, 1, 1);
+                            if (globals.render_type == RENDER_TYPE_LIGHTS) {
+                                color = Vector4(1, 1, 1, 0);
+                            }
+                        
+                            immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
                         }
-                        
-                        Vector2 position(xpos, ypos);
-                        Vector2 size(1, 1);
-
-                        float hw = size.x * 0.5f;
-                        float hh = size.y * 0.5f;
-
-                        Vector2 center(position.x + hw, position.y + hh);
-                        
-                        Vector2 p0 = center + Vector2(-hw, -hh);
-                        Vector2 p1 = center + Vector2(+hw, -hh);
-                        Vector2 p2 = center + Vector2(+hw, +hh);
-                        Vector2 p3 = center + Vector2(-hw, +hh);
-    
-                        Vector2 uv0(0, 0);
-                        Vector2 uv1(1, 0);
-                        Vector2 uv2(1, 1);
-                        Vector2 uv3(0, 1);
-
-                        Vector4 color(1, 1, 1, 1);
-                        
-                        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
+                        xpos += 1.0f;
                     }
-                    xpos += 1.0f;
+                    xpos = tm->position.x;
+                    //ypos -= 1.0f;
+                    ypos += 1.0f;
                 }
-                xpos = tm->position.x;
-                //ypos -= 1.0f;
-                ypos += 1.0f;
             }
+            immediate_flush();
         }
-        immediate_flush();
     }
-
+        
     // @TODO: Collapse drawing guys and thumbleweed into one function
     // and add enemies to them after adding animations to them
     
@@ -393,6 +409,8 @@ void draw_main_scene(Entity_Manager *manager) {
     //
     immediate_set_shader(globals.shader_guy);
     for (Thumbleweed *tw : manager->by_type._Thumbleweed) {
+        if (globals.render_type == RENDER_TYPE_LIGHTS && !(tw->flags & EF_CAN_CAST_SHADOWS)) continue;
+        
         Animation *animation = tw->current_animation;
         if (!animation) continue;
         
@@ -418,9 +436,14 @@ void draw_main_scene(Entity_Manager *manager) {
         Vector2 uv1(1, 0);
         Vector2 uv2(1, 1);
         Vector2 uv3(0, 1);
+
+        Vector4 color(1, 1, 1, 1);
+        if (globals.render_type == RENDER_TYPE_LIGHTS) {
+            color = Vector4(1, 1, 1, 0);
+        }
         
         immediate_begin();
-        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, Vector4(1, 1, 1, 1));
+        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
         immediate_flush();
     }
     
@@ -429,6 +452,8 @@ void draw_main_scene(Entity_Manager *manager) {
     //
     immediate_set_shader(globals.shader_guy);
     for (Enemy *enemy : manager->by_type._Enemy) {
+        if (globals.render_type == RENDER_TYPE_LIGHTS && !(enemy->flags & EF_CAN_CAST_SHADOWS)) continue;
+        
         Texture *texture = enemy->texture;
         if (!texture) continue;
         
@@ -451,9 +476,14 @@ void draw_main_scene(Entity_Manager *manager) {
         Vector2 uv1(1, 0);
         Vector2 uv2(1, 1);
         Vector2 uv3(0, 1);
+
+        Vector4 color(1, 1, 1, 1);
+        if (globals.render_type == RENDER_TYPE_LIGHTS) {
+            color = Vector4(1, 1, 1, 0);
+        }
         
         immediate_begin();
-        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, Vector4(1, 1, 1, 1));
+        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
         immediate_flush();
     }
 
@@ -462,6 +492,8 @@ void draw_main_scene(Entity_Manager *manager) {
     //
     immediate_set_shader(globals.shader_guy);
     for (Guy *guy : manager->by_type._Guy) {
+        if (globals.render_type == RENDER_TYPE_LIGHTS && !(guy->flags & EF_CAN_CAST_SHADOWS)) continue;
+        
         Animation *animation = guy->current_animation;
         if (!animation) continue;
         
@@ -487,9 +519,14 @@ void draw_main_scene(Entity_Manager *manager) {
         Vector2 uv1(1, 0);
         Vector2 uv2(1, 1);
         Vector2 uv3(0, 1);
+
+        Vector4 color(1, 1, 1, 1);
+        if (globals.render_type == RENDER_TYPE_LIGHTS) {
+            color = Vector4(1, 1, 1, 0);
+        }
         
         immediate_begin();
-        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, Vector4(1, 1, 1, 1));
+        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
         immediate_flush();
     }
 }
@@ -552,20 +589,77 @@ static void draw_circle(Vector2 center, float radius, Vector4 color) {
     }
 }
 
+// @CopyPaste from draw_outline_around_entity
+static void draw_shadow_segments(Entity *e) {
+    Vector4 color(0, 0, 0, 0);
+
+    Vector2 p0 = e->position;
+    Vector2 p1 = e->position + Vector2(e->size.x, 0);
+    Vector2 p2 = e->position + e->size;
+    Vector2 p3 = e->position + Vector2(0, e->size.y);
+
+    {
+        Vector3 a0(p0, 0);
+        Vector3 a1(p0, 1);
+        Vector3 b0(p1, 0);
+        Vector3 b1(p1, 1);
+
+        immediate_quad(a0, a1, b0, b1, color);
+    }
+    
+    {
+        Vector3 a0(p1, 0);
+        Vector3 a1(p1, 1);
+        Vector3 b0(p2, 0);
+        Vector3 b1(p2, 1);
+
+        immediate_quad(a0, a1, b0, b1, color);
+    }
+
+    {
+        Vector3 a0(p2, 0);
+        Vector3 a1(p2, 1);
+        Vector3 b0(p3, 0);
+        Vector3 b1(p3, 1);
+
+        immediate_quad(a0, a1, b0, b1, color);
+    }
+
+    {
+        Vector3 a0(p3, 0);
+        Vector3 a1(p3, 1);
+        Vector3 b0(p0, 0);
+        Vector3 b1(p0, 1);
+
+        immediate_quad(a0, a1, b0, b1, color);
+    }
+}
+
+static Vector4 to_vec4(Vector3 v) {
+    return Vector4(v.x, v.y, v.z, 1.0f);
+}
+
 static void draw_lights() {
     auto manager = get_entity_manager();
-    
-    immediate_set_shader(globals.shader_color);
     set_matrix_for_entities(manager);
     refresh_global_parameters();
     
-    immediate_begin();
-    auto guy = manager->get_active_hero();
-    if (guy) {
-        Vector4 color(1, .5f, .2f, 1);
-        draw_circle(guy->position + (0.5f * guy->size), 1.0f, color);
+    for (Light_Source *source : manager->by_type._Light_Source) {
+#if ENABLE_SHADOWS
+        immediate_set_shader(globals.shader_shadow_segments);
+        global_parameters.light_position = source->position;
+        refresh_global_parameters();
+        for (Entity *e : manager->all_entities) {
+            if (!(e->flags & EF_CAN_CAST_SHADOWS)) continue;
+            draw_shadow_segments(e);
+        }
+#endif
+        
+        immediate_set_shader(globals.shader_light);
+        immediate_begin();
+        draw_circle(source->position, source->radius, to_vec4(source->color));
+        immediate_flush();
     }
-    immediate_flush();
 }
 
 static void draw_one_frame() {
@@ -574,6 +668,7 @@ static void draw_one_frame() {
     set_viewport(0, 0, globals.render_width, globals.render_height);
     set_scissor(0, 0, globals.render_width, globals.render_height);
 
+    globals.render_type = RENDER_TYPE_LIGHTS;
     draw_lights();
     
     set_render_targets(the_offscreen_buffer, NULL);
@@ -584,7 +679,8 @@ static void draw_one_frame() {
     auto manager = get_entity_manager();
     set_matrix_for_entities(manager);
     refresh_global_parameters();
-    
+
+    globals.render_type = RENDER_TYPE_MAIN;
     draw_main_scene(manager);
 
     resolve_to_screen();
@@ -970,6 +1066,7 @@ static void init_overworld(Game_Mode_Info *info) {
     Guy *guy = manager->make_guy();
     guy->position = Vector2(0.0f, 0.5f);
     guy->size = Vector2(1.0f, 1.0f);
+    guy->flags = 0;
     manager->set_active_hero(guy);
     
     Tilemap *tilemap = manager->make_tilemap();
@@ -985,6 +1082,12 @@ static void init_overworld(Game_Mode_Info *info) {
 
     // TEMPORARY
     thumbleweed->current_animation = thumbleweed->attack_animation;
+
+    Light_Source *source = manager->make_light_source();
+    source->position = guy->position;
+    source->radius = 1.0f;
+    source->color = Vector3(1.0f, 0.5f, 0.2f);
+    guy->light_source_id = source->id;
 }
 
 Entity_Manager *get_entity_manager() {

@@ -304,9 +304,20 @@ Window_Type create_window(int width, int height, char *title) {
         log_error("Error in create_window: CreateWindowExW returned 0.\n");
         return NULL;
     }
+    
+    MONITORINFO mi = {sizeof(mi)};
+    GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &mi);
+    
+    int mwwt = mi.rcWork.right - mi.rcWork.left;
+    int mhwt = mi.rcWork.bottom - mi.rcWork.top;
 
+    int wx = mi.rcWork.left + ((mwwt - window_width) / 2);
+    int wy = mi.rcWork.top + ((mhwt - window_height) / 2);
+
+    SetWindowPos(window, HWND_TOP, wx, wy, 0, 0, SWP_NOSIZE);
+    
     UpdateWindow(window);
-    ShowWindow(window, SW_SHOW);
+    ShowWindow(window, SW_SHOWDEFAULT);
 
     window_placements.add(window, {});
     

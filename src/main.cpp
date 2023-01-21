@@ -23,7 +23,7 @@
 
 #include <stdio.h>
 
-#define ENABLE_SHADOWS 1
+#define ENABLE_SHADOWS 0
 
 #define Attach(var) globals.variable_service->attach(#var, &var)
 

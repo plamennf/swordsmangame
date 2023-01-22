@@ -42,7 +42,14 @@ class ExitScopeHelp {
 #define Square(x) ((x)*(x))
 #define Min(x, y) ((x) < (y) ? (x) : (y))
 #define Max(x, y) ((x) > (y) ? (x) : (y))
-#define Clamp(x, a, b) { if ((x) < (a)) (x) = (a); if ((x) > (b)) (x) = (b); }
+//#define Clamp(x, a, b) if ((x) < (a)) (x) = (a); if ((x) > (b)) (x) = (b);
+
+template <typename T>
+inline T Clamp(T x, T a, T b) {
+    if (x < a) return a;
+    if (x > b) return b;
+    return x;
+}
 
 #define Kilobytes(x) ((x)*1024ULL)
 #define Megabytes(x) (Kilobytes(x)*1024ULL)

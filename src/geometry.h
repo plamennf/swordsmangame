@@ -28,6 +28,15 @@ inline Vector2 operator+(Vector2 a, Vector2 b) {
     return result;
 }
 
+inline Vector2 operator-(Vector2 a, Vector2 b) {
+    Vector2 result;
+
+    result.x = a.x - b.x;
+    result.y = a.y - b.y;
+
+    return result;
+}
+
 inline Vector2 operator*(Vector2 a, float b) {
     Vector2 result;
 
@@ -52,10 +61,24 @@ inline Vector2 &operator+=(Vector2 &a, Vector2 b) {
     return a;
 }
 
+inline Vector2 &operator-=(Vector2 &a, Vector2 b) {
+    a.x -= b.x;
+    a.y -= b.y;
+    return a;
+}
+
 inline Vector2 &operator*=(Vector2 &a, float b) {
     a.x *= b;
     a.y *= b;
     return a;
+}
+
+inline bool operator<(Vector2 a, Vector2 b) {
+    return a.x < b.x && a.y < b.y;
+}
+
+inline bool operator>(Vector2 a, Vector2 b) {
+    return a.x > b.x && a.y > b.y;
 }
 
 inline float length_squared(Vector2 v) {
@@ -95,11 +118,24 @@ inline Vector2 componentwise_product(Vector2 a, Vector2 b) {
     return result;
 }
 
+inline float dot_product(Vector2 a, Vector2 b) {
+    return a.x*b.x + a.y*b.y;
+}
+
 inline Vector2 get_vec2(float theta) {
     float ct = cosf(theta);
     float st = sinf(theta);
 
     return Vector2(ct, st);
+}
+
+inline Vector2 absolute_value(Vector2 v) {
+    Vector2 result;
+
+    result.x = fabsf(v.x);
+    result.y = fabsf(v.y);
+
+    return result;
 }
 
 struct Vector3 {

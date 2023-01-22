@@ -16,6 +16,10 @@
 #include "os.h"
 #include "variable_service.h"
 #include "editor.h"
+//#include "collision.h"
+
+#define CUTE_C2_IMPLEMENTATION
+#include <cute_c2.h>
 
 #include "shader_registry.h"
 #include "texture_registry.h"
@@ -41,7 +45,7 @@ static bool save_current_game_mode();
 static void keymap_do_hotloading() {
     u64 modtime = globals.keymap->modtime;
     get_file_last_write_time("data/Game.keymap", &modtime);
-
+    
     if (modtime != globals.keymap->modtime) {
         if (!load_keymap(globals.keymap, "data/Game.keymap")) {
             set_keys_to_default(globals.keymap);
@@ -182,11 +186,11 @@ static void update_single_guy(Guy *guy, Entity_Manager *manager, float dt) {
     Clamp(guy->velocity.x, -guy->max_velocity.x, guy->max_velocity.x);
     Clamp(guy->velocity.y, -guy->max_velocity.y, guy->max_velocity.y);
 
-    Rectangle2 player_rect;
-    player_rect.x = guy->position.x;
-    player_rect.y = guy->position.y;
-    player_rect.width = 0.9f;
-    player_rect.height = 0.95f;
+    auto new_position = guy->position + guy->velocity;
+    
+    c2AABB player_aabb;
+    player_aabb.min = { new_position.x, new_position.y };
+    player_aabb.max = { new_position.x + guy->size.x, new_position.y + guy->size.y };
 
     Tilemap *tm = manager->tilemap;
     if (tm) {
@@ -196,22 +200,24 @@ static void update_single_guy(Guy *guy, Entity_Manager *manager, float dt) {
             for (int x = 0; x < tm->width; x++) {
                 Tile tile = tm->tiles[y * tm->width + x];
                 if (tile.is_collidable) {
-                    Rectangle2 tile_rect;
-                    tile_rect.x = xpos;
-                    tile_rect.y = ypos;
-                    tile_rect.width = 1.0f;
-                    tile_rect.height = 1.0f;
+                    c2AABB tile_aabb;
+                    tile_aabb.min = { xpos, ypos };
+                    tile_aabb.max = { xpos + 1.0f, ypos + 1.0f };
                     
                     bool has_collided = false;
-                    
-                    if ((guy->velocity.x > 0.0f && is_touching_left(player_rect, tile_rect, guy->velocity)) || (guy->velocity.x < 0.0f && is_touching_right(player_rect, tile_rect, guy->velocity))) {
-                        guy->velocity.x = 0.0f;
-                        has_collided = true;
-                    }
-                    
-                    if ((guy->velocity.y > 0.0f && is_touching_bottom(player_rect, tile_rect, guy->velocity)) || (guy->velocity.y < 0.0f && is_touching_top(player_rect, tile_rect, guy->velocity))) {
-                        guy->velocity.y = 0.0f;
-                        has_collided = true;
+
+                    c2Manifold m;
+                    c2AABBtoAABBManifold(player_aabb, tile_aabb, &m);
+                    if (m.count) {
+                        Vector2 n(m.n.x, m.n.y);
+                        
+                        if (n.x != 0.0f) {
+                            guy->velocity.x = 0.0f;
+                        }
+
+                        if (n.y != 0.0f) {
+                            guy->velocity.y = 0.0f;
+                        }
                     }
                     
                     if (has_collided) break;
@@ -222,7 +228,7 @@ static void update_single_guy(Guy *guy, Entity_Manager *manager, float dt) {
             ypos += 1.0f;
         }
     }
-
+    
     guy->position += guy->velocity;// * dt;
 
     Guy_State state = guy->current_state;
@@ -239,7 +245,7 @@ static void update_single_guy(Guy *guy, Entity_Manager *manager, float dt) {
     } else {
         state = GUY_STATE_IDLE;
     }
-        
+    
     guy->set_state(state);
     guy->set_orientation(orientation);
 
@@ -276,7 +282,7 @@ static void respond_to_input() {
             toggle_menu();
         }
     }
-
+    
     if (is_key_pressed(globals.keymap->toggle_fullscreen)) {
         window_toggle_fullscreen(globals.my_window);
     }
@@ -643,7 +649,10 @@ static void draw_lights() {
     auto manager = get_entity_manager();
     set_matrix_for_entities(manager);
     refresh_global_parameters();
-    
+
+#if !ENABLE_SHADOWS
+    immediate_begin();
+#endif
     for (Light_Source *source : manager->by_type._Light_Source) {
 #if ENABLE_SHADOWS
         immediate_set_shader(globals.shader_shadow_segments);
@@ -656,10 +665,17 @@ static void draw_lights() {
 #endif
         
         immediate_set_shader(globals.shader_light);
+#if ENABLE_SHADOWS
         immediate_begin();
+#endif
         draw_circle(source->position, source->radius, to_vec4(source->color));
+#if ENABLE_SHADOWS
         immediate_flush();
+#endif
     }
+#if !ENABLE_SHADOWS
+    immediate_flush();
+#endif
 }
 
 static void draw_one_frame() {
@@ -682,7 +698,7 @@ static void draw_one_frame() {
 
     globals.render_type = RENDER_TYPE_MAIN;
     draw_main_scene(manager);
-
+    
     resolve_to_screen();
     
     draw_hud();
@@ -714,27 +730,27 @@ static void do_one_frame() {
     update_window_events();
     for (Event event : globals.events_this_frame) {
         switch (event.type) {
-        case EVENT_TYPE_QUIT:
-            globals.should_quit_game = true;
-            break;
+            case EVENT_TYPE_QUIT:
+                globals.should_quit_game = true;
+                break;
 
-        case EVENT_TYPE_KEYBOARD: {
-            Key_Info *info = &key_infos[event.key_code];
-            info->changed = event.key_pressed != info->is_down;
-            info->is_down = event.key_pressed;
+            case EVENT_TYPE_KEYBOARD: {
+                Key_Info *info = &key_infos[event.key_code];
+                info->changed = event.key_pressed != info->is_down;
+                info->is_down = event.key_pressed;
 
-            if (event.alt_pressed && event.key_pressed) {
-                if (event.key_code == KEY_F4) {
-                    globals.should_quit_game = true;
+                if (event.alt_pressed && event.key_pressed) {
+                    if (event.key_code == KEY_F4) {
+                        globals.should_quit_game = true;
+                    }
                 }
-            }
             
-            break;
-        }
+                break;
+            }
 
-        case EVENT_TYPE_WINDOW_FOCUS:
-            globals.app_is_focused = event.has_received_focus;
-            break;
+            case EVENT_TYPE_WINDOW_FOCUS:
+                globals.app_is_focused = event.has_received_focus;
+                break;
         }
 
         if (globals.program_mode == PROGRAM_MODE_GAME) {
@@ -792,7 +808,7 @@ static void do_one_frame() {
     } else {
         accumulated_dt = 0.0;
         os_unconstrain_mouse();
-        globals.draw_cursor = true;
+        globals.draw_cursor = false;
         
         if (globals.program_mode == PROGRAM_MODE_MENU) {
             update_menu();
@@ -851,8 +867,6 @@ int main(int argc, char **argv) {
         setcwd(path);
     }
 
-    
-    
     globals.last_time = get_time();
 
     globals.display_width = 1600;
@@ -863,7 +877,7 @@ int main(int argc, char **argv) {
     globals.shader_registry = new Shader_Registry();
     globals.texture_registry = new Texture_Registry();
     globals.animation_registry = new Animation_Registry();
-
+    
     init_shaders();
     
     load_vars_file(globals.variable_service, "data/All.vars"); // @ReturnValueIgnored
@@ -881,7 +895,7 @@ float get_gameplay_dt() {
 
 static char *get_savegame_name_for_game_mode(Game_Mode game_mode) {
     switch (game_mode) {
-    case GAME_MODE_OVERWORLD: return "overworld";
+        case GAME_MODE_OVERWORLD: return "overworld";
     }
     return NULL;
 }
@@ -891,7 +905,7 @@ static void init_overworld(Game_Mode_Info *info);
 static Game_Mode_Info *make_new_game_mode(Game_Mode game_mode) {
     Game_Mode_Info *info = new Game_Mode_Info();
     switch (game_mode) {
-    case GAME_MODE_OVERWORLD: init_overworld(info);
+        case GAME_MODE_OVERWORLD: init_overworld(info);
     }
     return info;
 }
@@ -1112,11 +1126,11 @@ Vector2 screen_space_to_world_space(int x, int y, bool is_position) {
 
     fx *= globals.world_space_size_x;
     fy *= globals.world_space_size_y;
-
+    
     if (is_position) {
         fx -= globals.world_space_size_x * 0.5f;
         fy -= globals.world_space_size_y * 0.5f;
     }
-
+    
     return Vector2(fx, fy);
 }

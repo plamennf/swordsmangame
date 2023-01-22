@@ -2,6 +2,8 @@
 
 #include "geometry.h"
 
+#include <cute_c2.h>
+
 struct Entity_Manager;
 struct Texture;
 
@@ -25,7 +27,7 @@ struct Entity {
     int id;
     Entity_Manager *manager;
     int flags;
-
+    
     Vector2 position;
     Vector2 size;
 
@@ -66,6 +68,8 @@ struct Guy : public Entity {
     Animation *looking_left_moving_animation;
 
     int light_source_id;
+
+    void sync_geometry();
     
     void set_animation(Animation *animation);
     void set_state(Guy_State state);

@@ -56,7 +56,7 @@ static void draw_item(int menu_choice, char *text, int y) {
     float k = 0.4f;
     Vector4 color(k, k, k, 1);
     if (current_menu_choice == menu_choice) {
-        color = Vector4(0.95f, 0.02f, 0.85f, 1.0f);
+        color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
         int offset = font->character_height / 40;
         if (offset) {
             draw_text(font, text, x+offset, y-offset, Vector4(0, 0, 0, 1));
@@ -69,13 +69,13 @@ void draw_menu() {
     if (!big_font) init_menu_fonts();
     
     set_render_targets(the_back_buffer, NULL);
-    clear_color_target(the_back_buffer, 0.0f, 1.0f, 1.0f, 1.0f);
+    clear_color_target(the_back_buffer, 0.0f, 0.0f, 0.0f, 1.0f);
     set_viewport(0, 0, globals.display_width, globals.display_height);
     set_scissor(0, 0, globals.display_width, globals.display_height);
     
     rendering_2d_right_handed(globals.display_width, globals.display_height);
     refresh_global_parameters();
-
+    
     immediate_set_shader(globals.shader_text);
     
     {

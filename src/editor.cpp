@@ -30,7 +30,7 @@ void update_editor() {
     if (is_key_pressed(MOUSE_BUTTON_LEFT)) {
         int x, y;
         os_get_mouse_pointer_position(&x, &y, globals.my_window, true);
-
+        
         float w = (float)globals.display_width;
         if (w < 1.0f) w = 1.0f;
         float h = (float)globals.display_height;
@@ -153,11 +153,11 @@ void draw_editor() {
     set_matrix_for_entities(manager);
     refresh_global_parameters();
     draw_main_scene(manager);
-
-    resolve_to_screen();
     
     immediate_set_shader(globals.shader_color);
     if (currently_selected_entity_id != -1) {
         draw_outline_around_entity(currently_selected_entity_id);
     }
+    
+    resolve_to_screen();
 }

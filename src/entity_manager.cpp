@@ -41,7 +41,7 @@ Guy *Entity_Manager::make_guy() {
     guy->looking_left_moving_animation = globals.animation_registry->get("player_looking_left_moving");
 
     guy->current_animation = guy->looking_down_idle_animation;
-    
+
     return guy;
 }
 

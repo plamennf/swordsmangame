@@ -87,8 +87,8 @@ static Shader *get_shader_for_entity(Entity *e) {
 static void draw_tilemap(Tilemap *tm) {
     immediate_begin();
     float xpos = tm->position.x;
-    float ypos = tm->position.y;// + (tm->height - 1);
-
+    float ypos = tm->position.y;
+    
     Texture *last_texture = NULL;
     
     for (int y = 0; y < tm->height; y++) {
@@ -119,7 +119,7 @@ static void draw_tilemap(Tilemap *tm) {
                 Vector2 uv1(1, 0);
                 Vector2 uv2(1, 1);
                 Vector2 uv3(0, 1);
-
+                
                 Vector4 color(1, 1, 1, 1);
                 
                 immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
@@ -127,7 +127,6 @@ static void draw_tilemap(Tilemap *tm) {
             xpos += 1.0f;
         }
         xpos = tm->position.x;
-        //ypos -= 1.0f;
         ypos += 1.0f;
     }
     immediate_flush();

@@ -491,4 +491,38 @@ void os_get_mouse_pointer_position(int *x, int *y, Window_Type window_handle, bo
     if (y) *y = pt.y;
 }
 
+bool os_directory_exists(char *dir) {
+    s64 mark = get_temporary_storage_mark();
+    defer { set_temporary_storage_mark(mark); };
+    
+    wchar_t *wide_filepath = utf8_to_wstring(dir);
+    for (wchar_t *at = wide_filepath; *at; at++) {
+        if (*at == L'/') {
+            *at = L'\\';
+        }
+    }
+
+    DWORD attrib = GetFileAttributesW(wide_filepath);
+
+    return (attrib != INVALID_FILE_ATTRIBUTES && 
+            (attrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+bool os_make_directory_if_not_exist(char *dir) {
+    if (os_directory_exists(dir)) return false;
+
+    s64 mark = get_temporary_storage_mark();
+    defer { set_temporary_storage_mark(mark); };
+    
+    wchar_t *wide_filepath = utf8_to_wstring(dir);
+    for (wchar_t *at = wide_filepath; *at; at++) {
+        if (*at == L'/') {
+            *at = L'\\';
+        }
+    }
+    
+    BOOL result = CreateDirectoryW(wide_filepath, NULL);
+    return result;
+}
+
 #endif

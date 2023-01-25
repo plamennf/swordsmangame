@@ -542,152 +542,168 @@ Game_Mode_Info *load_game_mode(Game_Mode game_mode) {
     char *savegame_name = get_savegame_name_for_game_mode(game_mode);
     if (!savegame_name) return NULL;
     
-    char *full_path = tprint("data/saves/%s.level", savegame_name);    
-    FILE *file = fopen(full_path, "rb");
+    char *full_path = tprint("data/saves/%s/%s.level_info", savegame_name, savegame_name);
+    FILE *file = fopen(full_path, "rt");
     if (!file) {
         log("Save file for level '%s' does not exist. Making a new one.\n", savegame_name);
         return make_new_game_mode(game_mode);
     }
     defer { fclose(file); };
-    
-    bool error = false;
-    
-    int version = -1;
-    get_u2b(file, &version, &error);
-    if (error) {
-        log_error("File '%s' is too short be a valid file: Version number is missing.\n", full_path);
-        return NULL;
-    }
 
-    if (version > GAME_MODE_FILE_VERSION) {
-        log_error("Error in file '%s': Versoin number is too high. Current max file version is %d", GAME_MODE_FILE_VERSION);
-        return NULL;
-    }
-
-    int num_entities = 0;
-    get_u4b(file, &num_entities, &error);
-    if (error) {
-        log_error("File '%s' is too short be a valid file: The number of entities is missing.\n", full_path);
-        return NULL;
-    }
-    
-    Entity_Manager *manager = new Entity_Manager();
-    
-    for (int i = 0; i < num_entities; i++) {
-        int entity_type;
-        get_u1b(file, &entity_type, &error);
-        if (error) {
-            log_error("File '%s' is too short be a valid file: Entity type is missing.\n", full_path);
-            delete manager;
-            return NULL;
-        }
-        int id;
-        get_u4b(file, &id, &error);
-        if (error) {
-            log_error("File '%s' is too short be a valid file: Entity id is missing.\n", full_path);
-            delete manager;
-            return NULL;
-        }
-        
-        if (entity_type == ENTITY_TYPE_GUY) {
-            Guy *guy = manager->make_guy();
-            guy->id = id;
-
-            get_vector2(file, &guy->position, &error);
-            if (error) {
-                log_error("File '%s' is too short be a valid file: Entity position is missing.\n", full_path);
-                delete manager;
-                return NULL;
-            }
-            
-            get_vector2(file, &guy->size, &error);
-            if (error) {
-                log_error("File '%s' is too short be a valid file: Guy size is missing.\n", full_path);
-                delete manager;
-                return NULL;
-            }
-        } else if (entity_type == ENTITY_TYPE_TILEMAP) {
-            Tilemap *tm = manager->make_tilemap();
-
-            get_vector2(file, &tm->position, &error);
-            if (error) {
-                log_error("File '%s' is too short be a valid file: Entity position is missing.\n", full_path);
-                delete manager;
-                return NULL;
-            }
-            
-            char *name;
-            get_string(file, &name, &error);
-            if (error) {
-                log_error("File '%s' is too short be a valid file: Tilemap name is missing.\n", full_path);
-                delete manager;
-                return NULL;
-            }
-
-            load_tilemap(tm, name);
-        }
-    }
-
-    get_u4b(file, &manager->next_entity_id, &error);
-    if (error) {
-        log_error("File '%s' is too short to be a valid file: Entity manager next_entity_id is missing.\n", full_path);
-        delete manager;
-        return NULL;
-    }
+    auto manager = new Entity_Manager();
     
     Game_Mode_Info *info = new Game_Mode_Info();
     info->savegame_name = savegame_name; // All strings should be constant so we don't bother copying it.
     info->game_mode = game_mode;
     info->entity_manager = manager;
+
+    Text_File_Handler handler;
+    handler.start_file(full_path, full_path, "load_game_mode");
+
+    while (true) {
+        char *line = handler.consume_next_line();
+        if (!line) break;
+
+        FILE *file = fopen(line, "rt");
+        if (!file) {
+            log_error("Failed to open file '%s' for reading.\n", line);
+            continue;
+        }
+        defer { fclose(file); };
+
+        
+    }
     
     return info;
 }
 
-// @Incomplete:
-// - Add enemy
+// @TODO: Replace FILE * with String_Builder and make os_write_entire_file
+
+static char *entity_type_string(Entity_Type type) {
+    switch (type) {
+        case ENTITY_TYPE_GUY: return "Guy";
+        case ENTITY_TYPE_TILEMAP: return "Tilemap";
+        case ENTITY_TYPE_ENEMY: return "Enemy";
+        case ENTITY_TYPE_THUMBLEWEED: return "Thumbleweed";
+        case ENTITY_TYPE_LIGHT_SOURCE: return "Light_Source";
+        case ENTITY_TYPE_TREE: return "Tree";
+    }
+
+    return "(unknown)";
+}
+
+static void save_entity(FILE *file, Entity *e) {
+    fprintf(file, "type %s\n", entity_type_string(e->type));
+    fprintf(file, "id %d\n", e->id);
+
+    fprintf(file, "position (%f, %f)\n", e->position.x, e->position.y);
+    fprintf(file, "size (%f, %f)\n", e->size.x, e->size.y);
+}
+
+static bool save_guy(char *filepath, Guy *guy) {
+    FILE *file = fopen(filepath, "wt");
+    if (!file) {
+        log_error("Failed to open file '%s' for writing.\n", filepath);
+        return false;
+    }
+    defer { fclose(file); };
+
+    save_entity(file, guy);
+    
+    fprintf(file, "is_active %d\n", guy->is_active ? 1 : 0);
+    
+    return true;
+}
+
+static bool save_enemy(char *filepath, Enemy *enemy) {
+    FILE *file = fopen(filepath, "wt");
+    if (!file) {
+        log_error("Failed to open file '%s' for writing.\n", filepath);
+        return false;
+    }
+    defer { fclose(file); };
+
+    save_entity(file, enemy);
+    
+    return true;    
+}
+
+static bool save_thumbleweed(char *filepath, Thumbleweed *tw) {
+    FILE *file = fopen(filepath, "wt");
+    if (!file) {
+        log_error("Failed to open file '%s' for writing.\n", filepath);
+        return false;
+    }
+    defer { fclose(file); };
+
+    save_entity(file, tw);
+    
+    return true;
+}
+
+static bool save_light_source(char *filepath, Light_Source *ls) {
+    FILE *file = fopen(filepath, "wt");
+    if (!file) {
+        log_error("Failed to open file '%s' for writing.\n", filepath);
+        return false;
+    }
+    defer { fclose(file); };
+
+    save_entity(file, ls);
+    
+    fprintf(file, "radius %f\n", ls->radius);
+    fprintf(file, "color (%f, %f, %f)\n", ls->color.x, ls->color.y, ls->color.z);
+    
+    return true;
+}
+
+static bool save_tree(char *filepath, Tree *tree) {
+    FILE *file = fopen(filepath, "wt");
+    if (!file) {
+        log_error("Failed to open file '%s' for writing.\n", filepath);
+        return false;
+    }
+    defer { fclose(file); };
+
+    save_entity(file, tree);
+    
+    return true;
+}
+
 static bool save_current_game_mode() {
     auto info = globals.current_game_mode;
     auto manager = info->entity_manager;
-
-    // TODO: Make sure the save directory exists
     
-    char *full_path = tprint("data/saves/%s.level", info->savegame_name);
-    FILE *file = fopen(full_path, "wb");
+    os_make_directory_if_not_exist("data/saves");
+
+    char *dirpath = tprint("data/saves/%s", info->savegame_name);
+    os_make_directory_if_not_exist(dirpath);
+
+    Array <char *> entity_file_paths;
+    for (Entity *e : manager->all_entities) {
+        char *entity_file_path = tprint("%s/entity_%d.entity_text", dirpath, e->id);
+        entity_file_paths.add(entity_file_path);
+
+        if (e->type == ENTITY_TYPE_GUY) save_guy(entity_file_path, (Guy *)e);
+        else if (e->type == ENTITY_TYPE_ENEMY) save_enemy(entity_file_path, (Enemy *)e);
+        else if (e->type == ENTITY_TYPE_THUMBLEWEED) save_enemy(entity_file_path, (Thumbleweed *)e);
+        else if (e->type == ENTITY_TYPE_LIGHT_SOURCE) save_light_source(entity_file_path, (Light_Source *)e);
+        else if (e->type == ENTITY_TYPE_TREE) save_tree(entity_file_path, (Tree *)e);
+    }
+    
+    char *full_path = tprint("%s/%s.level_info", dirpath, info->savegame_name);
+    FILE *file = fopen(full_path, "wt");
     if (!file) {
         log_error("Failed to open file '%s' for writing.\n", full_path);
         return false;
     }
     defer { fclose(file); };
 
-    put_u2b(GAME_MODE_FILE_VERSION, file);
+    fprintf(file, "[%d] # Version number\n", GAME_MODE_FILE_VERSION);
 
-    Array <Entity *> entities;
-    for (int i = 0; i < manager->entity_lookup.allocated; i++) {
-        if (manager->entity_lookup.occupancy_mask[i]) {
-            entities.add(manager->entity_lookup.buckets[i].value);
-        }
+    for (char *fp : entity_file_paths) {
+        fprintf(file, "%s\n", fp);
     }
-
-    put_u4b(entities.count, file);
-
-    for (int i = 0; i < entities.count; i++) {
-        Entity *e = entities[i];
-        
-        put_u1b((u8)e->type, file);
-        put_u4b(e->id, file);
-
-        put_vector2(&e->position, file);
-        
-        if (e->type == ENTITY_TYPE_GUY) {
-            Guy *guy = (Guy *)e;
-            put_vector2(&guy->size, file);
-        } else if (e->type == ENTITY_TYPE_TILEMAP) {
-            Tilemap *tm = (Tilemap *)e;
-            put_string(tm->name, file);
-        }
-    }
-
-    put_u4b(manager->next_entity_id, file);
 
     return true;
 }

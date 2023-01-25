@@ -16,17 +16,13 @@ enum Entity_Type {
     ENTITY_TYPE_ENEMY = 2,
     ENTITY_TYPE_THUMBLEWEED = 3,
     ENTITY_TYPE_LIGHT_SOURCE = 4,
-};
-
-enum Entity_Flags {
-    EF_CAN_CAST_SHADOWS = 1,
+    ENTITY_TYPE_TREE = 5,
 };
 
 struct Entity {
     Entity_Type type;
     int id;
     Entity_Manager *manager;
-    int flags;
     
     Vector2 position;
     Vector2 size;
@@ -114,4 +110,8 @@ struct Thumbleweed : public Enemy {
 struct Light_Source : public Entity {
     float radius;
     Vector3 color;
+};
+
+struct Tree : public Entity {
+    
 };

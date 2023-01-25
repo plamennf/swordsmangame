@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "main_menu.h"
 #include "render.h"
-#include "draw_help.h"
+#include "draw.h"
 #include "font.h"
 #include "game.h"
 
@@ -76,7 +76,7 @@ void draw_menu() {
     rendering_2d_right_handed(globals.display_width, globals.display_height);
     refresh_global_parameters();
     
-    immediate_set_shader(globals.shader_text);
+    set_shader(globals.shader_text);
     
     {
         char *text = "Giovanni Yatsuro";

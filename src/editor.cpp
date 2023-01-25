@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "editor.h"
 #include "render.h"
-#include "draw_help.h"
+#include "draw.h"
 #include "game.h"
 #include "os.h"
 #include "entities.h"
@@ -49,24 +49,16 @@ void update_editor() {
         ny -= globals.world_space_size_y * 0.5f;
 
         int entity_id = -1;
-        for (Guy *guy : manager->by_type._Guy) {
-            if (nx >= guy->position.x && ny >= guy->position.y &&
-                nx <= guy->position.x + guy->size.x && ny <= guy->position.y + guy->size.y) {
-                entity_id = guy->id;
+
+        for (int i = manager->all_entities.count-1; i >= 0; i--) {
+            Entity *e = manager->all_entities[i];
+            if (nx >= e->position.x && ny >= e->position.y &&
+                nx <= e->position.x + e->size.x && ny <= e->position.y + e->size.y) {
+                entity_id = e->id;
                 break;
             }
         }
-
-        if (entity_id == -1) {
-            for (Enemy *enemy : manager->by_type._Enemy) {
-                if (nx >= enemy->position.x && ny >= enemy->position.y &&
-                    nx <= enemy->position.x + enemy->size.x && ny <= enemy->position.y + enemy->size.y) {
-                    entity_id = enemy->id;
-                    break;
-                }
-            }
-        }
-
+        
         currently_selected_entity_id = entity_id;
     }
 
@@ -77,6 +69,16 @@ void update_editor() {
             
             Vector2 mpos = screen_space_to_world_space(mouse_x_offset, mouse_y_offset, false);
             e->position += mpos;
+        }
+    }
+
+    if (is_key_down(KEY_CTRL)) {
+        if (is_key_pressed('V')) {
+            auto e = manager->get_entity_by_id(currently_selected_entity_id);
+            if (e) {
+                auto copied = manager->add_entity(e);
+                currently_selected_entity_id = copied->id;
+            }
         }
     }
 }
@@ -154,7 +156,7 @@ void draw_editor() {
     refresh_global_parameters();
     draw_main_scene(manager);
     
-    immediate_set_shader(globals.shader_color);
+    set_shader(globals.shader_color);
     if (currently_selected_entity_id != -1) {
         draw_outline_around_entity(currently_selected_entity_id);
     }

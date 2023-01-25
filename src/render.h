@@ -43,4 +43,4 @@ void immediate_quad(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, Vector2 uv0,
 void immediate_quad(float x0, float y0, float x1, float y1, Vector2 uv0, Vector2 uv1, Vector2 uv2, Vector2 uv3, Vector4 color);
 void immediate_triangle(Vector2 p0, Vector2 p1, Vector2 p2, Vector4 color);
 
-Shader *immediate_set_shader(Shader *shader);
+Shader *set_shader(Shader *shader);

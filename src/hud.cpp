@@ -3,7 +3,7 @@
 #include "game.h"
 #include "render.h"
 #include "font.h"
-#include "draw_help.h"
+#include "draw.h"
 
 const double NUM_SECONDS_BETWEEN_UPDATES = 0.05;
 static double num_seconds_since_last_update;
@@ -12,7 +12,7 @@ static double accumulated_dt;
 static double dt_for_draw;
 
 static void draw_fps() {
-    immediate_set_shader(globals.shader_text);
+    set_shader(globals.shader_text);
 
     float dt = globals.time_info.ui_dt;
 

@@ -3,3 +3,4 @@ cobblestone.png - https://pixelation.org/index.php?topic=13618.0
 sand0.png, sand1.png, sand2.png, sand3.png - https://wrlck.itch.io/simple-desert
 
 Four Arrow Cursor: <a href="https://iconscout.com/icons/four-arrow" target="_blank">Four Arrow Icon</a> by <a href="https://iconscout.com/contributors/fengquanli" target="_blank">fengquan</a>
+Gentle Forest: https://seliel-the-shaper.itch.io/gentle-forest

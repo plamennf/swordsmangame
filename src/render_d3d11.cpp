@@ -341,9 +341,8 @@ void immediate_triangle(Vector2 p0, Vector2 p1, Vector2 p2, Vector4 color) {
     num_immediate_vertices += 3;
 }
 
-Shader *immediate_set_shader(Shader *shader) {
-    assert(shader);
-    
+Shader *set_shader(Shader *shader) {
+    if (current_shader == shader) return current_shader;
     if (current_shader) immediate_flush();
     
     current_shader = shader;

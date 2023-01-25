@@ -3,7 +3,7 @@
 #include "os.h"
 #include "render.h"
 #include "font.h"
-#include "draw_help.h"
+#include "draw.h"
 #include "hud.h"
 #include "binary_file_stuff.h"
 #include "entity_manager.h"
@@ -16,7 +16,6 @@
 #include "os.h"
 #include "variable_service.h"
 #include "editor.h"
-//#include "collision.h"
 
 #define CUTE_C2_IMPLEMENTATION
 #include <cute_c2.h>
@@ -26,8 +25,6 @@
 #include "animation_registry.h"
 
 #include <stdio.h>
-
-#define ENABLE_SHADOWS 0
 
 #define Attach(var) globals.variable_service->attach(#var, &var)
 
@@ -118,20 +115,20 @@ bool is_key_pressed(Key_Action action) {
     if (action.alt_down && !is_key_down(KEY_ALT)) {
         return false;
     }
-
+    
     if (action.shift_down && !is_key_down(KEY_SHIFT)) {
         return false;
     }
-
+    
     if (action.ctrl_down && !is_key_down(KEY_CTRL)) {
         return false;
     }
-
+    
     if (!is_key_pressed(action.key_code)) {
         return false;
     }
-
-    return true;    
+    
+    return true;
 }
 
 bool was_key_just_released(Key_Action action) {
@@ -190,7 +187,7 @@ static void update_single_guy(Guy *guy, Entity_Manager *manager, float dt) {
     
     c2AABB player_aabb;
     player_aabb.min = { new_position.x, new_position.y };
-    player_aabb.max = { new_position.x + guy->size.x, new_position.y + guy->size.y };
+    player_aabb.max = { new_position.x + guy->size.x * 0.9f, new_position.y + guy->size.y * 0.9f };
 
     Tilemap *tm = manager->tilemap;
     if (tm) {
@@ -205,7 +202,7 @@ static void update_single_guy(Guy *guy, Entity_Manager *manager, float dt) {
                     tile_aabb.max = { xpos + 1.0f, ypos + 1.0f };
                     
                     bool has_collided = false;
-
+                    
                     c2Manifold m;
                     c2AABBtoAABBManifold(player_aabb, tile_aabb, &m);
                     if (m.count) {
@@ -237,11 +234,14 @@ static void update_single_guy(Guy *guy, Entity_Manager *manager, float dt) {
     if (guy->velocity.x != 0.0f || guy->velocity.y != 0.0f) {
         state = GUY_STATE_MOVING;
 
-        if (guy->velocity.x > 0.0f) orientation = GUY_LOOKING_RIGHT;
-        else if (guy->velocity.x < 0.0f) orientation = GUY_LOOKING_LEFT;
-        
-        if (guy->velocity.y > 0.0f) orientation = GUY_LOOKING_UP;
-        else if (guy->velocity.y < 0.0f) orientation = GUY_LOOKING_DOWN;
+        bool moving_diagonally = guy->velocity.x && guy->velocity.y;
+        if (!moving_diagonally) {
+            if (guy->velocity.x > 0.0f) orientation = GUY_LOOKING_RIGHT;
+            else if (guy->velocity.x < 0.0f) orientation = GUY_LOOKING_LEFT;
+            
+            if (guy->velocity.y > 0.0f) orientation = GUY_LOOKING_UP;
+            else if (guy->velocity.y < 0.0f) orientation = GUY_LOOKING_DOWN;
+        }
     } else {
         state = GUY_STATE_IDLE;
     }
@@ -330,378 +330,6 @@ static void init_game() {
     }
     
     globals.current_game_mode = load_game_mode(GAME_MODE_OVERWORLD);
-}
-
-void set_matrix_for_entities(Entity_Manager *manager) {
-    Tilemap *tm = manager->tilemap;
-    Camera *camera = manager->camera;
-    
-    float half_width = 0.5f * tm->width;
-    float half_height = 0.5f  * tm->height;
-    
-    global_parameters.proj_matrix = make_orthographic(-half_width * camera->zoom_t, half_width * camera->zoom_t, -half_height * camera->zoom_t, half_height * camera->zoom_t);
-    global_parameters.view_matrix = camera->get_matrix();
-    global_parameters.transform = global_parameters.proj_matrix * global_parameters.view_matrix;    
-}
-
-void draw_main_scene(Entity_Manager *manager) {
-    //
-    // Draw tilemaps
-    //
-    {
-        Texture *last_texture = NULL;
-        
-        immediate_set_shader(globals.shader_tile);
-        immediate_begin();
-        Tilemap *tm = manager->tilemap;
-        if (tm) {
-            if (globals.render_type == RENDER_TYPE_LIGHTS && tm->flags & EF_CAN_CAST_SHADOWS ||
-                globals.render_type == RENDER_TYPE_MAIN) {
-                float xpos = tm->position.x;
-                float ypos = tm->position.y;// + (tm->height - 1);
-                
-                for (int y = 0; y < tm->height; y++) {
-                    for (int x = 0; x < tm->width; x++) {
-                        Tile *tile = &tm->tiles[y * tm->width + x];
-                        if (tile->id) {
-                            Texture *texture = tm->textures[tile->id-1];
-                            if (texture != last_texture) {
-                                immediate_flush();
-                                set_texture(0, texture);
-                                last_texture = texture;
-                            }
-                        
-                            Vector2 position(xpos, ypos);
-                            Vector2 size(1, 1);
-
-                            float hw = size.x * 0.5f;
-                            float hh = size.y * 0.5f;
-
-                            Vector2 center(position.x + hw, position.y + hh);
-                        
-                            Vector2 p0 = center + Vector2(-hw, -hh);
-                            Vector2 p1 = center + Vector2(+hw, -hh);
-                            Vector2 p2 = center + Vector2(+hw, +hh);
-                            Vector2 p3 = center + Vector2(-hw, +hh);
-                            
-                            Vector2 uv0(0, 0);
-                            Vector2 uv1(1, 0);
-                            Vector2 uv2(1, 1);
-                            Vector2 uv3(0, 1);
-
-                            Vector4 color(1, 1, 1, 1);
-                            if (globals.render_type == RENDER_TYPE_LIGHTS) {
-                                color = Vector4(1, 1, 1, 0);
-                            }
-                        
-                            immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
-                        }
-                        xpos += 1.0f;
-                    }
-                    xpos = tm->position.x;
-                    //ypos -= 1.0f;
-                    ypos += 1.0f;
-                }
-            }
-            immediate_flush();
-        }
-    }
-        
-    // @TODO: Collapse drawing guys and thumbleweed into one function
-    // and add enemies to them after adding animations to them
-    
-    //
-    // Draw thumbleweeds
-    //
-    immediate_set_shader(globals.shader_guy);
-    for (Thumbleweed *tw : manager->by_type._Thumbleweed) {
-        if (globals.render_type == RENDER_TYPE_LIGHTS && !(tw->flags & EF_CAN_CAST_SHADOWS)) continue;
-        
-        Animation *animation = tw->current_animation;
-        if (!animation) continue;
-        
-        Texture *texture = animation->get_current_frame();
-        if (!texture) continue;
-        
-        set_texture(0, texture);
-        
-        Vector2 position = tw->position;
-        Vector2 size = tw->size;
-        
-        float hw = size.x * 0.5f;
-        float hh = size.y * 0.5f;
-        
-        Vector2 center = position + Vector2(hw, hh);
-
-        Vector2 p0 = center + Vector2(-hw, -hh);
-        Vector2 p1 = center + Vector2(+hw, -hh);
-        Vector2 p2 = center + Vector2(+hw, +hh);
-        Vector2 p3 = center + Vector2(-hw, +hh);
-
-        Vector2 uv0(0, 0);
-        Vector2 uv1(1, 0);
-        Vector2 uv2(1, 1);
-        Vector2 uv3(0, 1);
-
-        Vector4 color(1, 1, 1, 1);
-        if (globals.render_type == RENDER_TYPE_LIGHTS) {
-            color = Vector4(1, 1, 1, 0);
-        }
-        
-        immediate_begin();
-        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
-        immediate_flush();
-    }
-    
-    //
-    // Draw enemies
-    //
-    immediate_set_shader(globals.shader_guy);
-    for (Enemy *enemy : manager->by_type._Enemy) {
-        if (globals.render_type == RENDER_TYPE_LIGHTS && !(enemy->flags & EF_CAN_CAST_SHADOWS)) continue;
-        
-        Texture *texture = enemy->texture;
-        if (!texture) continue;
-        
-        set_texture(0, texture);
-        
-        Vector2 position = enemy->position;
-        Vector2 size = enemy->size;
-        
-        float hw = size.x * 0.5f;
-        float hh = size.y * 0.5f;
-        
-        Vector2 center = position + Vector2(hw, hh);
-
-        Vector2 p0 = center + Vector2(-hw, -hh);
-        Vector2 p1 = center + Vector2(+hw, -hh);
-        Vector2 p2 = center + Vector2(+hw, +hh);
-        Vector2 p3 = center + Vector2(-hw, +hh);
-        
-        Vector2 uv0(0, 0);
-        Vector2 uv1(1, 0);
-        Vector2 uv2(1, 1);
-        Vector2 uv3(0, 1);
-
-        Vector4 color(1, 1, 1, 1);
-        if (globals.render_type == RENDER_TYPE_LIGHTS) {
-            color = Vector4(1, 1, 1, 0);
-        }
-        
-        immediate_begin();
-        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
-        immediate_flush();
-    }
-
-    //
-    // Draw guys
-    //
-    immediate_set_shader(globals.shader_guy);
-    for (Guy *guy : manager->by_type._Guy) {
-        if (globals.render_type == RENDER_TYPE_LIGHTS && !(guy->flags & EF_CAN_CAST_SHADOWS)) continue;
-        
-        Animation *animation = guy->current_animation;
-        if (!animation) continue;
-        
-        Texture *texture = animation->get_current_frame();
-        if (!texture) continue;
-        
-        set_texture(0, texture);
-        
-        Vector2 position = guy->position;
-        Vector2 size = guy->size;
-        
-        float hw = size.x * 0.5f;
-        float hh = size.y * 0.5f;
-        
-        Vector2 center = position + Vector2(hw, hh);
-
-        Vector2 p0 = center + Vector2(-hw, -hh);
-        Vector2 p1 = center + Vector2(+hw, -hh);
-        Vector2 p2 = center + Vector2(+hw, +hh);
-        Vector2 p3 = center + Vector2(-hw, +hh);
-
-        Vector2 uv0(0, 0);
-        Vector2 uv1(1, 0);
-        Vector2 uv2(1, 1);
-        Vector2 uv3(0, 1);
-
-        Vector4 color(1, 1, 1, 1);
-        if (globals.render_type == RENDER_TYPE_LIGHTS) {
-            color = Vector4(1, 1, 1, 0);
-        }
-        
-        immediate_begin();
-        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
-        immediate_flush();
-    }
-}
-
-void resolve_to_screen() {
-    set_render_targets(the_back_buffer, NULL);
-    clear_color_target(the_back_buffer, 0.0f, 0.0f, 0.0f, 1.0f);
-    set_viewport(0, 0, globals.display_width, globals.display_height);
-    set_scissor(0, 0, globals.display_width, globals.display_height);
-
-    rendering_2d_right_handed(globals.display_width, globals.display_height);
-    refresh_global_parameters();
-    
-    immediate_set_shader(globals.shader_lightmap_fx);
-    set_texture(0, the_offscreen_buffer->texture);
-    set_texture(1, the_lightmap_buffer->texture);
-    
-    float x0 = (globals.display_width - globals.render_width) * 0.5f;
-    float y0 = (globals.display_height - globals.render_height) * 0.5f;
-    float x1 = x0 + (float)globals.render_width;
-    float y1 = y0 + (float)globals.render_height;
-
-#ifdef RENDER_D3D11
-    // Use flipped-y uvs because d3d11 uses left-hand coordinate systems.
-    Vector2 uv0(0, 1);
-    Vector2 uv1(1, 1);
-    Vector2 uv2(1, 0);
-    Vector2 uv3(0, 0);
-#else
-    Vector2 uv0(0, 0);
-    Vector2 uv1(1, 0);
-    Vector2 uv2(1, 1);
-    Vector2 uv3(0, 1);
-#endif
-    
-    Vector4 color(1, 1, 1, 1);
-    
-    immediate_begin();
-    immediate_quad(x0, y0, x1, y1, uv0, uv1, uv2, uv3, color);
-    immediate_flush();
-}
-
-static void draw_circle(Vector2 center, float radius, Vector4 color) {
-    const int NUM_TRIANGLES = 100;
-    auto dtheta = TAU / NUM_TRIANGLES;
-    float r = radius;
-
-    for (int i = 0; i < NUM_TRIANGLES; i++) {
-        auto theta0 = i * dtheta;
-        auto theta1 = (i+1) * dtheta;
-        
-        auto v0 = get_vec2(theta0);
-        auto v1 = get_vec2(theta1);
-
-        auto p0 = center;
-        auto p1 = center + r * v0;
-        auto p2 = center + r * v1;
-
-        immediate_triangle(p0, p1, p2, color);
-    }
-}
-
-// @CopyPaste from draw_outline_around_entity
-static void draw_shadow_segments(Entity *e) {
-    Vector4 color(0, 0, 0, 0);
-
-    Vector2 p0 = e->position;
-    Vector2 p1 = e->position + Vector2(e->size.x, 0);
-    Vector2 p2 = e->position + e->size;
-    Vector2 p3 = e->position + Vector2(0, e->size.y);
-
-    {
-        Vector3 a0(p0, 0);
-        Vector3 a1(p0, 1);
-        Vector3 b0(p1, 0);
-        Vector3 b1(p1, 1);
-
-        immediate_quad(a0, a1, b0, b1, color);
-    }
-    
-    {
-        Vector3 a0(p1, 0);
-        Vector3 a1(p1, 1);
-        Vector3 b0(p2, 0);
-        Vector3 b1(p2, 1);
-
-        immediate_quad(a0, a1, b0, b1, color);
-    }
-
-    {
-        Vector3 a0(p2, 0);
-        Vector3 a1(p2, 1);
-        Vector3 b0(p3, 0);
-        Vector3 b1(p3, 1);
-
-        immediate_quad(a0, a1, b0, b1, color);
-    }
-
-    {
-        Vector3 a0(p3, 0);
-        Vector3 a1(p3, 1);
-        Vector3 b0(p0, 0);
-        Vector3 b1(p0, 1);
-
-        immediate_quad(a0, a1, b0, b1, color);
-    }
-}
-
-static Vector4 to_vec4(Vector3 v) {
-    return Vector4(v.x, v.y, v.z, 1.0f);
-}
-
-static void draw_lights() {
-    auto manager = get_entity_manager();
-    set_matrix_for_entities(manager);
-    refresh_global_parameters();
-
-#if !ENABLE_SHADOWS
-    immediate_begin();
-#endif
-    for (Light_Source *source : manager->by_type._Light_Source) {
-#if ENABLE_SHADOWS
-        immediate_set_shader(globals.shader_shadow_segments);
-        global_parameters.light_position = source->position;
-        refresh_global_parameters();
-        for (Entity *e : manager->all_entities) {
-            if (!(e->flags & EF_CAN_CAST_SHADOWS)) continue;
-            draw_shadow_segments(e);
-        }
-#endif
-        
-        immediate_set_shader(globals.shader_light);
-#if ENABLE_SHADOWS
-        immediate_begin();
-#endif
-        draw_circle(source->position, source->radius, to_vec4(source->color));
-#if ENABLE_SHADOWS
-        immediate_flush();
-#endif
-    }
-#if !ENABLE_SHADOWS
-    immediate_flush();
-#endif
-}
-
-static void draw_one_frame() {
-    set_render_targets(the_lightmap_buffer, NULL);
-    clear_color_target(the_lightmap_buffer, 19/255.0f, 24/255.0f, 98/255.0f, 1.0f);
-    set_viewport(0, 0, globals.render_width, globals.render_height);
-    set_scissor(0, 0, globals.render_width, globals.render_height);
-
-    globals.render_type = RENDER_TYPE_LIGHTS;
-    draw_lights();
-    
-    set_render_targets(the_offscreen_buffer, NULL);
-    clear_color_target(the_offscreen_buffer, 0.0f, 1.0f, 1.0f, 1.0f);
-    set_viewport(0, 0, globals.render_width, globals.render_height);
-    set_scissor(0, 0, globals.render_width, globals.render_height);
-    
-    auto manager = get_entity_manager();
-    set_matrix_for_entities(manager);
-    refresh_global_parameters();
-
-    globals.render_type = RENDER_TYPE_MAIN;
-    draw_main_scene(manager);
-    
-    resolve_to_screen();
-    
-    draw_hud();
 }
 
 static void do_one_frame() {
@@ -1080,7 +708,6 @@ static void init_overworld(Game_Mode_Info *info) {
     Guy *guy = manager->make_guy();
     guy->position = Vector2(0.0f, 0.5f);
     guy->size = Vector2(1.0f, 1.0f);
-    guy->flags = 0;
     manager->set_active_hero(guy);
     
     Tilemap *tilemap = manager->make_tilemap();
@@ -1102,6 +729,14 @@ static void init_overworld(Game_Mode_Info *info) {
     source->radius = 1.0f;
     source->color = Vector3(1.0f, 0.5f, 0.2f);
     guy->light_source_id = source->id;
+
+    Tree *tree0 = manager->make_tree();
+    tree0->size.y = 2.0f;
+    tree0->size.x = tree0->size.y * 0.833333f;
+    //tree0->position = Vector2(7.0f-tree0->size.x, 3.5f-tree0->size.y);
+    //tree0->position = Vector2(-7.0f+(tree0->size.x*0.25f), 4.0f-tree0->size.y);
+    tree0->position.x = -6.0f - (tree0->size.x * 0.5f);
+    tree0->position.y = +1.25f + (tree0->size.y * 0.5f);
 }
 
 Entity_Manager *get_entity_manager() {

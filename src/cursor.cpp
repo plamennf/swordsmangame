@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "cursor.h"
 #include "render.h"
-#include "draw_help.h"
+#include "draw.h"
 #include "os.h"
 #include "game.h"
 
@@ -14,7 +14,7 @@ static void draw_cursor_dot(int x, int y) {
     
     float r = 0.01f * globals.render_height;
 
-    immediate_set_shader(globals.shader_color);
+    set_shader(globals.shader_color);
     
     immediate_begin();
     
@@ -45,7 +45,7 @@ static void draw_cursor_four_arrows(int x, int y) {
     center.x = static_cast <float>(x);
     center.y = static_cast <float>(y);
 
-    immediate_set_shader(globals.shader_texture);
+    set_shader(globals.shader_texture);
     
     Texture *texture = globals.texture_registry->get("four-arrow");
     if (!texture) return;

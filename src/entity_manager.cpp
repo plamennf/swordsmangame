@@ -6,12 +6,18 @@
 
 #include "animation_registry.h"
 
-void Entity_Manager::register_entity(Entity *e) {
-    entity_lookup.add(next_entity_id, e);
+void Entity_Manager::register_entity(Entity *e, int id) {
+    if (id == -1) {
+        entity_lookup.add(next_entity_id, e);
+        e->id = next_entity_id;
+        next_entity_id += 1;
+    } else {
+        entity_lookup.add(id, e);
+        e->id = id;
+        next_entity_id = id + 1;
+    }
     all_entities.add(e);
-    e->id = next_entity_id;
     e->manager = this;
-    next_entity_id += 1;
 }
 
 Entity *Entity_Manager::get_entity_by_id(int id) {
@@ -20,7 +26,7 @@ Entity *Entity_Manager::get_entity_by_id(int id) {
     return NULL;
 }
 
-Entity *Entity_Manager::add_entity(Entity *source) {
+Entity *Entity_Manager::add_entity(Entity *source, int id) {
     s64 size = 0;
     Entity *e = NULL;
     switch (source->type) {
@@ -50,14 +56,14 @@ Entity *Entity_Manager::add_entity(Entity *source) {
     }
 
     memcpy(e, source, size);
-    register_entity(e);
+    register_entity(e, id);
     return e;
 }
 
-Guy *Entity_Manager::make_guy() {
+Guy *Entity_Manager::make_guy(int id) {
     Guy *guy = new Guy();
     by_type._Guy.add(guy);
-    register_entity(guy);
+    register_entity(guy, id);
     guy->type = ENTITY_TYPE_GUY;
 
     guy->size = Vector2(1, 1);
@@ -77,10 +83,10 @@ Guy *Entity_Manager::make_guy() {
     return guy;
 }
 
-Thumbleweed *Entity_Manager::make_thumbleweed() {
+Thumbleweed *Entity_Manager::make_thumbleweed(int id) {
     Thumbleweed *thumbleweed = new Thumbleweed();
     by_type._Thumbleweed.add(thumbleweed);
-    register_entity(thumbleweed);
+    register_entity(thumbleweed, id);
     thumbleweed->type = ENTITY_TYPE_THUMBLEWEED;
 
     thumbleweed->size = Vector2(1, 1);
@@ -95,29 +101,29 @@ Thumbleweed *Entity_Manager::make_thumbleweed() {
     return thumbleweed;
 }
 
-Light_Source *Entity_Manager::make_light_source() {
+Light_Source *Entity_Manager::make_light_source(int id) {
     Light_Source *source = new Light_Source();
     by_type._Light_Source.add(source);
-    register_entity(source);
+    register_entity(source, id);
     source->type = ENTITY_TYPE_LIGHT_SOURCE;
 
     return source;
 }
 
-Tilemap *Entity_Manager::make_tilemap() {
+Tilemap *Entity_Manager::make_tilemap(int id) {
     assert(!tilemap);
     
     Tilemap *tm = new Tilemap();
     tilemap = tm;
-    register_entity(tm);
+    register_entity(tm, id);
     tm->type = ENTITY_TYPE_TILEMAP;
     return tm;
 }
 
-Tree *Entity_Manager::make_tree() {
+Tree *Entity_Manager::make_tree(int id) {
     Tree *tree = new Tree();
     by_type._Tree.add(tree);
-    register_entity(tree);
+    register_entity(tree, id);
     tree->type = ENTITY_TYPE_TREE;
 
     tree->current_animation = globals.animation_registry->get("tree");
@@ -125,12 +131,12 @@ Tree *Entity_Manager::make_tree() {
     return tree;
 }
 
-Enemy *Entity_Manager::make_enemy() {
+Enemy *Entity_Manager::make_enemy(int id) {
     Enemy *enemy = new Enemy();
     by_type._Enemy.add(enemy);
-    register_entity(enemy);
+    register_entity(enemy, id);
     enemy->type = ENTITY_TYPE_ENEMY;
-
+    
     enemy->size = Vector2(2, 2);
     
     return enemy;

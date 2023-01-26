@@ -16,6 +16,7 @@
 #include "os.h"
 #include "variable_service.h"
 #include "editor.h"
+#include "text_file_handler.h"
 
 #define CUTE_C2_IMPLEMENTATION
 #include <cute_c2.h>
@@ -538,6 +539,30 @@ static Game_Mode_Info *make_new_game_mode(Game_Mode game_mode) {
     return info;
 }
 
+static void load_guy(Guy *guy, FILE *file) {
+    int is_active = 0;
+    fscanf(file, "is_active %d\n", &is_active);
+    guy->is_active = (bool)is_active;
+    fscanf(file, "light_source_id %d\n", &guy->light_source_id);
+}
+
+static void load_enemy(Enemy *enemy, FILE *file) {
+    
+}
+
+static void load_thumbleweed(Enemy *enemy, FILE *file) {
+    
+}
+
+static void load_light_source(Light_Source *ls, FILE *file) {
+    fscanf(file, "radius %f\n", &ls->radius);
+    fscanf(file, "color (%f, %f, %f)\n", &ls->color.x, &ls->color.y, &ls->color.z);
+}
+
+static void load_tree(Tree *tree, FILE *file) {
+    
+}
+
 Game_Mode_Info *load_game_mode(Game_Mode game_mode) {
     char *savegame_name = get_savegame_name_for_game_mode(game_mode);
     if (!savegame_name) return NULL;
@@ -560,19 +585,77 @@ Game_Mode_Info *load_game_mode(Game_Mode game_mode) {
     Text_File_Handler handler;
     handler.start_file(full_path, full_path, "load_game_mode");
 
-    while (true) {
+    char tilemap_name[4096] = {};    
+    {
         char *line = handler.consume_next_line();
-        if (!line) break;
+        sscanf(line, "tilemap %s", tilemap_name);
+    }
+    
+    while (true) {
+        char *file_name = handler.consume_next_line();
+        if (!file_name) break;
 
-        FILE *file = fopen(line, "rt");
+        FILE *file = fopen(file_name, "rt");
         if (!file) {
-            log_error("Failed to open file '%s' for reading.\n", line);
+            log_error("Failed to open file '%s' for reading.\n", file_name);
             continue;
         }
         defer { fclose(file); };
 
+        char line[BUFSIZ];
+        fgets(line, BUFSIZ, file);
+        char entity_type_str[4096] = {};
+        sscanf(line, "type %s", entity_type_str);
+
+        fgets(line, BUFSIZ, file);
+        int id = -1;
+        sscanf(line, "id %d", &id);
         
+        fgets(line, BUFSIZ, file);
+        Vector2 position;
+        sscanf(line, "position (%f, %f)", &position.x, &position.y);
+
+        fgets(line, BUFSIZ, file);
+        Vector2 size;
+        sscanf(line, "size (%f, %f)", &size.x, &size.y);
+        
+        if (strings_match(entity_type_str, "Guy")) {
+            Guy *guy = manager->make_guy(id);
+            guy->position = position;
+            guy->size = size;
+            load_guy(guy, file);
+        } else if (strings_match(entity_type_str, "Enemy")) {
+            Enemy *enemy = manager->make_enemy(id);
+            enemy->position = position;
+            enemy->size = size;
+            load_enemy(enemy, file);
+        } else if (strings_match(entity_type_str, "Thumbleweed")) {
+            Thumbleweed *tw = manager->make_thumbleweed(id);
+            tw->position = position;
+            tw->size = size;
+            load_thumbleweed(tw, file);
+        } else if (strings_match(entity_type_str, "Light_Source")) {
+            Light_Source *ls = manager->make_light_source(id);
+            ls->position = position;
+            ls->size = size;
+            load_light_source(ls, file);
+        } else if (strings_match(entity_type_str, "Tree")) {
+            Tree *tree = manager->make_tree(id);
+            tree->position = position;
+            tree->size = size;
+            load_tree(tree, file);
+        }
     }
+
+    Tilemap *tilemap = manager->make_tilemap();
+    load_tilemap(tilemap, tilemap_name);
+    tilemap->position = Vector2(-8.0f, -4.5f);
+    
+    Camera *camera = new Camera();
+    camera->position = Vector2(0, 0);
+    camera->zoom_t_target = 1.0f;
+    camera->zoom_t = 1.0f;
+    manager->camera = camera;
     
     return info;
 }
@@ -611,6 +694,7 @@ static bool save_guy(char *filepath, Guy *guy) {
     save_entity(file, guy);
     
     fprintf(file, "is_active %d\n", guy->is_active ? 1 : 0);
+    fprintf(file, "light_source_id %d\n", guy->light_source_id);
     
     return true;
 }
@@ -681,6 +765,8 @@ static bool save_current_game_mode() {
 
     Array <char *> entity_file_paths;
     for (Entity *e : manager->all_entities) {
+        if (e->type == ENTITY_TYPE_TILEMAP) continue;
+        
         char *entity_file_path = tprint("%s/entity_%d.entity_text", dirpath, e->id);
         entity_file_paths.add(entity_file_path);
 
@@ -701,6 +787,8 @@ static bool save_current_game_mode() {
 
     fprintf(file, "[%d] # Version number\n", GAME_MODE_FILE_VERSION);
 
+    fprintf(file, "tilemap %s\n", manager->tilemap ? manager->tilemap->name : "(unknown)");
+    
     for (char *fp : entity_file_paths) {
         fprintf(file, "%s\n", fp);
     }

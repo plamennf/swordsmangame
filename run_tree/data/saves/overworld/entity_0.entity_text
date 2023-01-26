@@ -3,3 +3,4 @@ id 0
 position (0.000000, 0.500000)
 size (1.000000, 1.000000)
 is_active 1
+light_source_id 4

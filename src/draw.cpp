@@ -180,10 +180,26 @@ void draw_main_scene(Entity_Manager *manager) {
     auto tm = manager->tilemap;
     if (tm) draw_entity(tm);
 
-    for (Tree *tree : manager->by_type._Tree) draw_entity(tree);
+    Array <Tree *> trees_to_draw_after_guy;
+    trees_to_draw_after_guy.use_temporary_storage = true;
+
+    Guy *guy = manager->get_active_hero();
+    for (Tree *tree : manager->by_type._Tree) {
+        if (guy) {
+            if (tree->position.y < guy->position.y) {
+                trees_to_draw_after_guy.add(tree);
+            } else {
+                draw_entity(tree);
+            }
+        } else {
+            draw_entity(tree);
+        }
+    }
     for (Thumbleweed *tw : manager->by_type._Thumbleweed) draw_entity(tw);
     for (Enemy *enemy : manager->by_type._Enemy) draw_entity(enemy);
     for (Guy *guy : manager->by_type._Guy) draw_entity(guy);
+    
+    for (Tree *tree : trees_to_draw_after_guy) draw_entity(tree);
 }
 
 void resolve_to_screen() {

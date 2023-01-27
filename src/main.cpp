@@ -615,34 +615,25 @@ Game_Mode_Info *load_game_mode(Game_Mode game_mode) {
         Vector2 position;
         sscanf(line, "position (%f, %f)", &position.x, &position.y);
 
-        fgets(line, BUFSIZ, file);
-        Vector2 size;
-        sscanf(line, "size (%f, %f)", &size.x, &size.y);
-        
         if (strings_match(entity_type_str, "Guy")) {
             Guy *guy = manager->make_guy(id);
             guy->position = position;
-            guy->size = size;
             load_guy(guy, file);
         } else if (strings_match(entity_type_str, "Enemy")) {
             Enemy *enemy = manager->make_enemy(id);
             enemy->position = position;
-            enemy->size = size;
             load_enemy(enemy, file);
         } else if (strings_match(entity_type_str, "Thumbleweed")) {
             Thumbleweed *tw = manager->make_thumbleweed(id);
             tw->position = position;
-            tw->size = size;
             load_thumbleweed(tw, file);
         } else if (strings_match(entity_type_str, "Light_Source")) {
             Light_Source *ls = manager->make_light_source(id);
             ls->position = position;
-            ls->size = size;
             load_light_source(ls, file);
         } else if (strings_match(entity_type_str, "Tree")) {
             Tree *tree = manager->make_tree(id);
             tree->position = position;
-            tree->size = size;
             load_tree(tree, file);
         }
     }
@@ -680,7 +671,7 @@ static void save_entity(FILE *file, Entity *e) {
     fprintf(file, "id %d\n", e->id);
 
     fprintf(file, "position (%f, %f)\n", e->position.x, e->position.y);
-    fprintf(file, "size (%f, %f)\n", e->size.x, e->size.y);
+    //fprintf(file, "size (%f, %f)\n", e->size.x, e->size.y);
 }
 
 static bool save_guy(char *filepath, Guy *guy) {
@@ -837,8 +828,6 @@ static void init_overworld(Game_Mode_Info *info) {
     Tree *tree0 = manager->make_tree();
     tree0->size.y = 2.0f;
     tree0->size.x = tree0->size.y * 0.833333f;
-    //tree0->position = Vector2(7.0f-tree0->size.x, 3.5f-tree0->size.y);
-    //tree0->position = Vector2(-7.0f+(tree0->size.x*0.25f), 4.0f-tree0->size.y);
     tree0->position.x = -6.0f - (tree0->size.x * 0.5f);
     tree0->position.y = +1.25f + (tree0->size.y * 0.5f);
 }

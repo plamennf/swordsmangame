@@ -126,6 +126,9 @@ Tree *Entity_Manager::make_tree(int id) {
     register_entity(tree, id);
     tree->type = ENTITY_TYPE_TREE;
 
+    tree->size.y = 3.0f;
+    tree->size.x = tree->size.y * 0.833333f;
+    
     tree->current_animation = globals.animation_registry->get("tree");
     
     return tree;

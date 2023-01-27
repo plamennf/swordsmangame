@@ -2,5 +2,7 @@
 
 sampler_rate 6
 is_looping true
-num_frames 1
-pachi_samurai_still_right_side
+num_frames 3
+pachi samurai right/pachi samurai_still_right side1
+pachi samurai right/pachi samurai_still_right side2
+pachi samurai right/pachi samurai_still_right side3

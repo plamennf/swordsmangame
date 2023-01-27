@@ -1,6 +1,5 @@
 type Light_Source
 id 4
-position (0.500000, 1.000000)
-size (0.000000, 0.000000)
+position (1.286887, 0.162622)
 radius 1.000000
 color (1.000000, 0.500000, 0.200000)

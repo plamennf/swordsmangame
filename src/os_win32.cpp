@@ -259,6 +259,9 @@ static LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
 }
 
 static void init_window_class() {
+    // TODO: Put this in a better place.
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    
     WNDCLASSEXW wc = {};
 
     wc.cbSize = sizeof(WNDCLASSEXW);

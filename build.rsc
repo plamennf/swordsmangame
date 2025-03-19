@@ -4,54 +4,6 @@ configurations
     Debug
     Release
 
-project tile_unpacker
-    type "ConsoleApp"
-    outputdir "run_tree"
-    objdir "run_tree/obj/tile_unpacker"
-    outputname "tile_unpacker"
-
-    staticruntime "on"
-
-    cfiles {
-        src/tile_unpacker.cpp
-    }
-
-    includedirs {
-        external/include
-        src/
-    }
-
-    libdirs {
-        external/lib
-    }
-
-    libs {
-        user32.lib
-        gdi32.lib
-        d3d11.lib
-        dxgi.lib
-        d3dcompiler.lib
-        freetype.lib
-    }
-
-    filter "configuration:Debug"
-        debugsymbols "on"
-        optimize "off"
-        runtime "Debug"
-        defines {
-            _DEBUG
-            DEBUG
-        }
-
-    filter "configuration:Release"
-        debugsymbols "off"
-        optimize "on"
-        runtime "Release"
-        defines {
-            NDEBUG
-            RELEASE
-        }
-
 project swordsmangame
     type "ConsoleApp"
     outputdir "run_tree"

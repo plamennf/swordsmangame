@@ -1,5 +1,4 @@
-*.obj
-*.exe
-*.pch
-*.pdb
-*.ilk
+run_tree/*.obj
+run_tree/*.pch
+run_tree/*.pdb
+run_tree/*.ilk
